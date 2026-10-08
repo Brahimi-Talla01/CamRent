@@ -27,6 +27,11 @@ data/raw/*
 data/processed/*
 !data/processed/.gitkeep
 
+# --- Échantillon Phase 0 : source tierce sans licence, non redistribué ---
+data/samples/*
+!data/samples/.gitkeep
+!data/samples/README.md
+
 # --- Artefacts ML ---
 ml/models/*
 !ml/models/.gitkeep

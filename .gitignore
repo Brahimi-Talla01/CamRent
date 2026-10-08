@@ -37,6 +37,9 @@ dbt/logs/
 dbt/dbt_packages/
 dbt/.user.yml
 
+# --- Matériel de référence (hors projet) ---
+inspire/
+
 # --- OS / IDE ---
 .DS_Store
 Thumbs.db

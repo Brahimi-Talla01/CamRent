@@ -1,0 +1,47 @@
+# Configuration Python de CamRent.
+# NOTE : le backend de build (hatchling/setuptools) sera ajouté quand le premier
+# package Python sera créé. En attendant, ce fichier déclare les dépendances et l'outillage.
+
+[project]
+name = "camrent"
+version = "0.1.0"
+description = "Analyse et estimation des loyers au Cameroun (Yaoundé & Douala)"
+requires-python = ">=3.11"
+
+# Socle commun : manipulation de données + accès PostgreSQL (MVP, Plan Technique §57/§73)
+dependencies = [
+    "pandas",
+    "pyarrow",
+    "SQLAlchemy",
+    "psycopg[binary]",
+]
+
+[project.optional-dependencies]
+ml = [
+    "scikit-learn",
+    "mlflow",
+]
+api = [
+    "fastapi",
+    "uvicorn[standard]",
+]
+quality = [
+    "pandera",
+]
+dev = [
+    "ruff",
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+# `inspire/` et `assets/` sont du matériel de référence, pas du code du projet.
+extend-exclude = ["inspire", "assets"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

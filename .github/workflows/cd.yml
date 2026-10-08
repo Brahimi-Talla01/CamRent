@@ -1,0 +1,28 @@
+name: CD
+
+# Déploiement — implémenté à la Phase 12 (Production).
+# Déclenchement manuel uniquement pour l'instant : aucune cible de déploiement n'est configurée.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Environnement cible"
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Placeholder
+        run: echo "Déploiement à implémenter en Phase 12."

@@ -2,10 +2,10 @@
 
 Fichiers attendus dans ce dossier :
 
-| Fichier | Source | Lignes | Statut |
-|---|---|---|---|
-| `koutchoumi1.csv` | [deegeorgie/Predicting-house-prices-in-Cameroon](https://github.com/deegeorgie/Predicting-house-prices-in-Cameroon) | 2 565 | local uniquement |
-| `jumia.csv` | idem | 500 | local uniquement |
+| Fichier           | Source                                                                                                              | Lignes | Statut           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- | ------ | ---------------- |
+| `koutchoumi1.csv` | [deegeorgie/Predicting-house-prices-in-Cameroon](https://github.com/deegeorgie/Predicting-house-prices-in-Cameroon) | 2 565  | local uniquement |
+| `jumia.csv`       | idem                                                                                                                | 500    | local uniquement |
 
 ## Provenance et licence
 

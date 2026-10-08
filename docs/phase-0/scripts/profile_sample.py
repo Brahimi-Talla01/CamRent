@@ -110,8 +110,9 @@ def analyse(path: Path) -> int:
               f"médiane={fmt(statistics.median(ordered))}  p75={fmt(percentile(ordered, 0.75))}  "
               f"max={fmt(ordered[-1])}")
         print(f"  moyenne={fmt(statistics.mean(ordered))}")
-        print(f"  <=0: {sum(1 for p in prices if p <= 0)}  <20k: {sum(1 for p in prices if p < 20000)}  "
-              f">2M: {sum(1 for p in prices if p > 2000000)}")
+        below = sum(1 for price in prices if price < 20000)
+        above = sum(1 for price in prices if price > 2000000)
+        print(f"  <=0: {sum(1 for price in prices if price <= 0)}  <20k: {below}  >2M: {above}")
 
     area_field = "Area" if "Area" in fields else "Address"
     source = "koutchoumi" if area_field == "Area" else "jumia"
@@ -122,7 +123,7 @@ def analyse(path: Path) -> int:
     print_distribution("Quartier", [hood for _, hood in pairs])
 
     by_city: dict[str, list[int]] = defaultdict(list)
-    for (city, _), raw in zip(pairs, raw_prices):
+    for (city, _), raw in zip(pairs, raw_prices, strict=True):
         value = parse_int(raw)
         if value is not None:
             by_city[city].append(value)
@@ -132,7 +133,7 @@ def analyse(path: Path) -> int:
     bedrooms_field = "Bedrooms"
     if bedrooms_field in fields:
         by_bedrooms: dict[str, list[int]] = defaultdict(list)
-        for row, raw in zip(rows, raw_prices):
+        for row, raw in zip(rows, raw_prices, strict=True):
             value, bedrooms = parse_int(raw), parse_int(row.get(bedrooms_field, "") or "")
             if value is not None and bedrooms is not None:
                 by_bedrooms[str(bedrooms)].append(value)

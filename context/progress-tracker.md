@@ -4,50 +4,64 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 0 — Validation du problème** (en cours)
+- **Phase 0 — Validation du problème** (livrables produits, en PR)
 
 ## Current Goal
 
-- Produire l'échantillon exploratoire et les rapports de qualité qui valident la faisabilité du problème ML (livrables attendus par le Plan Technique §77).
+- Clôturer l'issue #1 une fois la PR de Phase 0 mergée dans `develop`.
 
 ## Completed
 
-- **Documents de conception (amont)** : les trois documents de référence sont rédigés et servent d'entrée au projet.
-  - `assets/CamRent_Conception_Produit_et_Probleme_Data.md` — conception produit et définition du problème Data.
-  - `assets/CamRent_Plan_Technique_Implementation_Architecture_Data_ML.md` — architecture Data/ML/applicative et roadmap.
-  - `assets/Data_Discovery_Report.md` — Data Discovery Report (sources, volumes, qualité, contraintes, faisabilité).
+- **Documents de conception (amont)** : les trois documents de référence sont rédigés et servent d'entrée.
+  - `assets/CamRent_Conception_Produit_et_Probleme_Data.md`
+  - `assets/CamRent_Plan_Technique_Implementation_Architecture_Data_ML.md`
+  - `assets/Data_Discovery_Report.md`
+
+- **Dépôt et outillage** : dépôt relié à GitHub (`Brahimi-Talla01/CamRent`), branches `main` (production) et `develop` (défaut), CI/CD (`.github/workflows/`), protection par ruleset (PR obligatoire, `CI` requis, pas de force-push).
+- **Contexte IA** : `context/` (6 fichiers + `feature-specs/` par phase) et `AGENTS.md`.
+- **Phase 0 — livrables** dans `docs/phase-0/` :
+  - `data-discovery-report.md` (10 points du Plan Technique §76)
+  - `legal-assessment.md` (CGU / `robots.txt` / licence par source)
+  - `feasibility.md` (verdict + décision de stack)
+  - `profiling/missing_values_report.md`, `profiling/duplicates_report.md`
+  - `quality_report/data_quality_score.md`, `quality_report/recommendations.md`
+  - `eda/univariate_analysis.md`, `eda/bivariate_analysis.md`, `eda/insights.md`
+  - `scripts/profile_sample.py` (reproductible, bibliothèque standard uniquement)
+  - Échantillon (non versionné, source tierce sans licence) : `data/samples/`
 
 ## In Progress
 
-- **Phase 0 — Validation du problème** : le Data Discovery Report est rédigé. Restent à produire :
-  - `data/samples/` — échantillons bruts par source (`geloka_sample.csv`, `koutchoumi_sample.csv`, `jumia_sample.csv` si dispo) ;
-  - `profiling/` — `missing_values_report.md`, `duplicates_report.md`, distributions ;
-  - `quality_report/` — score qualité + recommandations ;
-  - `eda/` — première analyse (univariée, bivariée, insights).
+- Aucun.
 
 ## Next Up
 
-- Phase 1 — Data ingestion (scripts de collecte, stockage Raw, métadonnées, premières validations).
+- Phase 1 — Data ingestion (issue #2), **après vérification des CGU** de Koutchoumi et Geloka.
 
 ## Open Questions
 
-- **Tension de stack à trancher** : le Data Discovery Report (§5.3) propose de figer MongoDB + Airflow + dbt + AWS/GCP, tandis que le Plan Technique (§71-74) demande de ne **rien figer avant l'EDA**. Décision retenue à ce stade : suivre le Plan Technique (ne rien figer), conformément à `architecture-context.md`.
-- Quelle méthode d'intervalle de prédiction retenir (quantiles, bootstrapping, quantile regression…) ? À décider après expérimentation (Phases 5-6).
-- Séparation train / validation / test : aléatoire ou chronologique ? À décider selon la disponibilité de la date de publication.
-- Comment traiter la **surface manquante** (< 10 % de disponibilité) : imputation, exclusion, ou modèle sans surface ?
-- Périmètre géographique exact du MVP (liste des quartiers de Yaoundé et Douala retenus).
+- **Collecte** : quelles sources retenir, et les CGU de Koutchoumi / Geloka autorisent-elles la collecte ?
+- **Prix censurés** (Koutchoumi `"> X"`) : exclure ou modéliser comme bornes (`rent_price >= X`) ?
+- **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ?
+- **Dataset tiers `deegeorgie`** : à garder strictement local (sans licence), non redistribué.
+- Méthode d'intervalle de prédiction (quantiles, bootstrap, quantile regression) — à décider Phases 5-6.
+- Séparation train/validation/test : aléatoire ou chronologique (dépend de la date de collecte).
+- Périmètre géographique exact du MVP (liste des quartiers).
 
 ## Architecture Decisions
 
-- Suivre l'architecture **progressive** du Plan Technique : ne pas introduire Airflow / MongoDB / Data Warehouse / streaming avant besoin réel.
+- Stack **Niveau 1 (prototype Data)** retenue : Python, CSV/Parquet, PostgreSQL, Pandas, scikit-learn.
+  Non introduits : MongoDB, Airflow, dbt, AWS/GCP, Data Warehouse, streaming.
 - **ELT** comme philosophie principale, avec ETL ciblé dans l'ingestion.
 - **PostgreSQL** joue le rôle de base opérationnelle **et** analytique au MVP.
 - **Bronze / Silver / Gold** comme organisation des données.
-- **Baseline avant modèle** : aucun modèle ML complexe tant qu'une baseline mesurée n'est pas battue.
-- Cible = `rent_price` (prix demandé dans les annonces), à ne pas confondre avec le prix réellement payé.
+- **Baseline avant modèle** : aucun modèle complexe tant qu'une baseline mesurée n'est pas battue.
+- Cible = `rent_price` (prix **demandé** dans les annonces).
 
 ## Session Notes
 
-- Dépôt au stade planification : `assets/` (documents de conception), `docs/` (vide), `inspire/` (exemples de référence).
-- Ce dossier `context/` est le point d'entrée de tout agent IA travaillant sur CamRent.
-- Les `feature-specs/` sont numérotées par phase (`00` → `12`), conformément au Plan Technique §59-69.
+- Échantillon Phase 0 : 3 065 lignes brutes → **≈ 1 226 lignes uniques** (71,7 % de doublons Koutchoumi).
+- `koutchoumi1.csv` : prix en **bornes** (`"> X FCFA"`), 98 % Douala.
+- `jumia.csv` : 11 % d'annonces sans prix (« Contactez le vendeur »).
+- Surface et date **absentes** des deux fichiers.
+- `robots.txt` vérifiés le 2026-10-08 : Geloka `Allow: /` ; Koutchoumi directives **commentées**.
+- Le dataset `deegeorgie` **ne déclare aucune licence** → non versionné, usage local seulement.

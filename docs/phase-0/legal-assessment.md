@@ -48,3 +48,19 @@ e-mail ni nom). Les futures collectes devront exclure explicitement ces champs.
 2. Revérifier `robots.txt` au moment de la collecte.
 3. Limiter le débit de requêtes (pas de charge excessive).
 4. Documenter la source, la date et la méthode de chaque lot collecté.
+
+## Mise à jour Phase 1 (9 octobre 2026)
+
+Vérification complémentaire effectuée au démarrage de la **Phase 1** :
+
+- **Geloka** — CGU lues (`/fr/terms-and-conditions`, maj 2025-06-22). Elles
+  restreignent la copie/redistribution et limitent l'usage aux besoins
+  personnels et non commerciaux : plus restrictives que la mention « citation +
+  lien » du baromètre. Décision : baromètre utilisé comme **repère agrégé** avec
+  citation, sans redistribution, collecte soumise à confirmation.
+- **Koutchoumi** — **aucune CGU/ToS publiée** (toutes les URL candidates renvoient
+  une page générique) ; `robots.txt` sans règle active. Décision : collecte en
+  usage recherche, prudente, sans données personnelles, soumise à confirmation.
+
+Détail : `docs/phase-1/legal-review.md`. Aucune source n'est classée `verified`
+à ce stade : toutes les collectes réseaux exigent `--confirm-legal`.

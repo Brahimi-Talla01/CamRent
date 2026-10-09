@@ -27,7 +27,9 @@ jobs:
       - name: Install tooling
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest
+          # Dépendances d'exécution nécessaires aux tests (l'installation du paquet
+          # via pyproject sera activée quand le backend de build sera figé).
+          pip install ruff pytest requests
 
       - name: Lint (ruff)
         run: ruff check .

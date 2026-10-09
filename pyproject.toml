@@ -14,6 +14,7 @@ dependencies = [
     "pyarrow",
     "SQLAlchemy",
     "psycopg[binary]",
+    "requests",
 ]
 
 [project.optional-dependencies]
@@ -45,3 +46,5 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Permet `import ingestion` (pas de layout src/) quand pytest tourne depuis la racine.
+pythonpath = ["."]

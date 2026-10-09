@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 0 — Validation du problème** (livrables produits, en PR)
+- **Phase 1 — Data ingestion** (implémentée, vérifiée, PR à ouvrir vers `develop`)
 
 ## Current Goal
 
-- Clôturer l'issue #1 une fois la PR de Phase 0 mergée dans `develop`.
+- Livrer l'ingestion officielle dans `ingestion/` (collecte brute + métadonnées + validations Bronze) via une PR vers `develop` (issue #2).
 
 ## Completed
 
@@ -19,39 +19,44 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 - **Dépôt et outillage** : dépôt relié à GitHub (`Brahimi-Talla01/CamRent`), branches `main` (production) et `develop` (défaut), CI/CD (`.github/workflows/`), protection par ruleset (PR obligatoire, `CI` requis, pas de force-push).
 - **Contexte IA** : `context/` (6 fichiers + `feature-specs/` par phase) et `AGENTS.md`.
-- **Phase 0 — livrables** dans `docs/phase-0/` :
-  - `data-discovery-report.md` (10 points du Plan Technique §76)
-  - `legal-assessment.md` (CGU / `robots.txt` / licence par source)
-  - `feasibility.md` (verdict + décision de stack)
-  - `profiling/missing_values_report.md`, `profiling/duplicates_report.md`
-  - `quality_report/data_quality_score.md`, `quality_report/recommendations.md`
-  - `eda/univariate_analysis.md`, `eda/bivariate_analysis.md`, `eda/insights.md`
-  - `scripts/profile_sample.py` (reproductible, bibliothèque standard uniquement)
-  - Échantillon (non versionné, source tierce sans licence) : `data/samples/`
+- **Phase 0 — Validation du problème** (mergée dans `develop`, issue #1 close) dans `docs/phase-0/` :
+  - `data-discovery-report.md`, `legal-assessment.md`, `feasibility.md`,
+    `profiling/`, `quality_report/`, `eda/`, `scripts/profile_sample.py`.
+  - Échantillon (non versionné, source tierce sans licence) : `data/samples/`.
+
+- **Phase 1 — Data ingestion** dans `ingestion/` + `docs/phase-1/` :
+  - package `ingestion/` : `config.py`, `models.py`, `http_client.py` (`requests` + `robots.txt` + débit + retries), `storage.py` (JSONL daté immuable + métadonnées de lot), `bronze.py`, `__main__.py` (CLI), `sources/` (`geloka`, `koutchoumi`, `reference_local`, `raw_document`).
+  - porte légale : toute source non `verified`/`local` refuse de tourner sans `--confirm-legal`.
+  - layout `data/raw/` conforme à la spec (`listings/`, `reference_data/`, `user_submissions/`, `metadata/`).
+  - validations Bronze (présence, format, volume, clés, métadonnées, fraîcheur) — **16/16**.
+  - tests `tests/unit/test_ingestion_*.py` (**18** tests, verts) ; `ruff` sans erreur.
+  - revue légale : `docs/phase-1/legal-review.md` ; vérifications résumées dans `docs/phase-0/legal-assessment.md`.
+  - minimisation : aucune donnée personnelle stockée (texte brut Koutchoumi non conservé).
 
 ## In Progress
 
-- Aucun.
+- Aucun (en attente d'ouverture de la PR de Phase 1).
 
 ## Next Up
 
-- Phase 1 — Data ingestion (issue #2), **après vérification des CGU** de Koutchoumi et Geloka.
+- Phase 2 — Data cleaning (issue #3) : déduplication, conversion des types, référentiel géographique, traitement des prix censurés.
 
 ## Open Questions
 
-- **Collecte** : quelles sources retenir, et les CGU de Koutchoumi / Geloka autorisent-elles la collecte ?
-- **Prix censurés** (Koutchoumi `"> X"`) : exclure ou modéliser comme bornes (`rent_price >= X`) ?
-- **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ?
-- **Dataset tiers `deegeorgie`** : à garder strictement local (sans licence), non redistribué.
-- Méthode d'intervalle de prédiction (quantiles, bootstrap, quantile regression) — à décider Phases 5-6.
-- Séparation train/validation/test : aléatoire ou chronologique (dépend de la date de collecte).
+- **Prix censurés** (Koutchoumi `"> X"`) : exclure ou modéliser comme bornes (`rent_price >= X`) ? → Phase 2.
+- **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ? → Phase 2.
+- **Référentiel géographique** : liste canonique des quartiers de Yaoundé / Douala → Phase 2.
+- **Endpoints MINFI / INS** : documents stockés bruts, endpoints et formats à valider.
+- **Dataset tiers `deegeorgie`** : usage strictement local (sans licence), non redistribué.
+- Méthode d'intervalle de prédiction (quantiles, bootstrap, quantile regression) — Phases 5-6.
+- Séparation train/validation/test : aléatoire ou chronologique ?
 - Périmètre géographique exact du MVP (liste des quartiers).
 
 ## Architecture Decisions
 
 - Stack **Niveau 1 (prototype Data)** retenue : Python, CSV/Parquet, PostgreSQL, Pandas, scikit-learn.
-  Non introduits : MongoDB, Airflow, dbt, AWS/GCP, Data Warehouse, streaming.
-- **ELT** comme philosophie principale, avec ETL ciblé dans l'ingestion.
+- **Couche HTTP d'ingestion** : `requests` (Phase 1), avec `robots.txt`, débit limité et User-Agent transparent.
+- **ELT** comme philosophie principale, avec ETL ciblé dans l'ingestion ; **pas de normalisation** en Phase 1.
 - **PostgreSQL** joue le rôle de base opérationnelle **et** analytique au MVP.
 - **Bronze / Silver / Gold** comme organisation des données.
 - **Baseline avant modèle** : aucun modèle complexe tant qu'une baseline mesurée n'est pas battue.
@@ -60,8 +65,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 ## Session Notes
 
 - Échantillon Phase 0 : 3 065 lignes brutes → **≈ 1 226 lignes uniques** (71,7 % de doublons Koutchoumi).
-- `koutchoumi1.csv` : prix en **bornes** (`"> X FCFA"`), 98 % Douala.
-- `jumia.csv` : 11 % d'annonces sans prix (« Contactez le vendeur »).
-- Surface et date **absentes** des deux fichiers.
-- `robots.txt` vérifiés le 2026-10-08 : Geloka `Allow: /` ; Koutchoumi directives **commentées**.
+- `robots.txt` : Geloka `Allow: /` ; Koutchoumi directives commentées (aucune règle active).
+- **Geloka** : CGU restrictives (usage personnel non commercial, pas de copie/redistribution) → baromètre utilisé comme repère agrégé avec citation.
+- **Koutchoumi** : aucune CGU/ToS publiée ; structure observée = catégories `/<type>-to-rent-at-<city>-cameroon.html` (`?page=N`) + détails `/en/<id>/<slug>` (le slug encode ville/quartier/pièces/prix).
 - Le dataset `deegeorgie` **ne déclare aucune licence** → non versionné, usage local seulement.

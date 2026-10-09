@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 1 — Data ingestion** (implémentée, vérifiée, PR à ouvrir vers `develop`)
+- **Phase 1 — Data ingestion** (mergée dans `develop` via la PR #16, issue #2 close)
 
 ## Current Goal
 
-- Livrer l'ingestion officielle dans `ingestion/` (collecte brute + métadonnées + validations Bronze) via une PR vers `develop` (issue #2).
+- Démarrer la Phase 2 — Data cleaning (issue #3) : déduplication, conversion des types, référentiel géographique.
 
 ## Completed
 
@@ -24,7 +24,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     `profiling/`, `quality_report/`, `eda/`, `scripts/profile_sample.py`.
   - Échantillon (non versionné, source tierce sans licence) : `data/samples/`.
 
-- **Phase 1 — Data ingestion** dans `ingestion/` + `docs/phase-1/` :
+- **Phase 1 — Data ingestion** (mergée dans `develop`, issue #2 close) dans `ingestion/` + `docs/phase-1/` :
   - package `ingestion/` : `config.py`, `models.py`, `http_client.py` (`requests` + `robots.txt` + débit + retries), `storage.py` (JSONL daté immuable + métadonnées de lot), `bronze.py`, `__main__.py` (CLI), `sources/` (`geloka`, `koutchoumi`, `reference_local`, `raw_document`).
   - porte légale : toute source non `verified`/`local` refuse de tourner sans `--confirm-legal`.
   - layout `data/raw/` conforme à la spec (`listings/`, `reference_data/`, `user_submissions/`, `metadata/`).
@@ -35,7 +35,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## In Progress
 
-- Aucun (en attente d'ouverture de la PR de Phase 1).
+- Aucun.
 
 ## Next Up
 

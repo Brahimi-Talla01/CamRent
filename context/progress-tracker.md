@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 1 — Data ingestion** (mergée dans `develop` via la PR #16, issue #2 close)
+- **Phase 2 — Data cleaning** (implémentée et vérifiée, PR à ouvrir vers `develop`)
 
 ## Current Goal
 
-- Démarrer la Phase 2 — Data cleaning (issue #3) : déduplication, conversion des types, référentiel géographique.
+- Livrer le Silver dataset (`pipelines/`) via une PR vers `develop` (issue #3).
 
 ## Completed
 
@@ -33,19 +33,27 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - revue légale : `docs/phase-1/legal-review.md` ; vérifications résumées dans `docs/phase-0/legal-assessment.md`.
   - minimisation : aucune donnée personnelle stockée (texte brut Koutchoumi non conservé).
 
+- **Phase 2 — Data cleaning** dans `pipelines/` + `docs/phase-2/` :
+  - package `pipelines/` : `geo.py` (référentiel seed + résolution), `parsing.py`, `adapters.py` (par source), `silver.py` (resolution, validation, dédup, quarantine, écriture), `report.py`, `__main__.py`.
+  - sorties : `data/processed/silver_listings.parquet`, `quarantine_listings.parquet`, `docs/phase-2/cleaning-report.md`.
+  - règles : types, villes/quartiers canoniques, catégories, valeurs bornées (`price_is_bound`), dédup (technique vs republication), aberrations signalées (jamais supprimées), invalides en quarantine.
+  - construction réelle : Raw 3 078 → **2 992 lignes Silver**, **78 en quarantine** (cohérent avec ≈ 1 226 uniques : 1 970 republications).
+  - tests `tests/unit/test_pipelines_*.py` (**19** tests) ; `ruff` sans erreur.
+
 ## In Progress
 
-- Aucun.
+- Aucun (en attente d'ouverture de la PR de Phase 2).
 
 ## Next Up
 
-- Phase 2 — Data cleaning (issue #3) : déduplication, conversion des types, référentiel géographique, traitement des prix censurés.
+- Phase 3 — EDA (issue #4) sur le Silver dataset.
 
 ## Open Questions
 
-- **Prix censurés** (Koutchoumi `"> X"`) : exclure ou modéliser comme bornes (`rent_price >= X`) ? → Phase 2.
-- **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ? → Phase 2.
-- **Référentiel géographique** : liste canonique des quartiers de Yaoundé / Douala → Phase 2.
+- **Prix censurés** : conservés avec `price_is_bound` (borne inférieure) ; stratégie de pondération/exclusion à figer en Phases 5-6.
+- **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ?
+- **Référentiel géographique** : seed en place ; 582 quartiers Silver non reconnus à enrichir (Phase 3).
+- **Republications** : 1 970 lignes marquées `is_republication` ; décider si conservées/pondérées pour l'entraînement.
 - **Endpoints MINFI / INS** : documents stockés bruts, endpoints et formats à valider.
 - **Dataset tiers `deegeorgie`** : usage strictement local (sans licence), non redistribué.
 - Méthode d'intervalle de prédiction (quantiles, bootstrap, quantile regression) — Phases 5-6.
@@ -61,6 +69,8 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Bronze / Silver / Gold** comme organisation des données.
 - **Baseline avant modèle** : aucun modèle complexe tant qu'une baseline mesurée n'est pas battue.
 - Cible = `rent_price` (prix **demandé** dans les annonces).
+- **Silver** : Raw immuable → normalisation + validation + dédup ; aberrations **signalées** (`outlier_flags`), invalides en **quarantine** (jamais supprimées) ; aucune imputation permissive.
+- **Périmètre Silver** : `koutchoumi` (live) + `reference_local` (jeux locaux `jumia.csv` / `koutchoumi1.csv`) ; Geloka exclu (médianes agrégées).
 
 ## Session Notes
 
@@ -69,3 +79,4 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Geloka** : CGU restrictives (usage personnel non commercial, pas de copie/redistribution) → baromètre utilisé comme repère agrégé avec citation.
 - **Koutchoumi** : aucune CGU/ToS publiée ; structure observée = catégories `/<type>-to-rent-at-<city>-cameroon.html` (`?page=N`) + détails `/en/<id>/<slug>` (le slug encode ville/quartier/pièces/prix).
 - Le dataset `deegeorgie` **ne déclare aucune licence** → non versionné, usage local seulement.
+- Silver (Phase 2) : 3 078 bruts → 2 992 Silver / 78 quarantine ; `price_is_bound` 2 564 ; aberrations 17 ; quartiers non reconnus 582.

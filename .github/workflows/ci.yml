@@ -29,7 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           # Dépendances d'exécution nécessaires aux tests (l'installation du paquet
           # via pyproject sera activée quand le backend de build sera figé).
-          pip install ruff pytest requests
+          pip install ruff pytest requests pandas pyarrow
 
       - name: Lint (ruff)
         run: ruff check .

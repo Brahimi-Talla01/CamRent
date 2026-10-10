@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 2 — Data cleaning** (implémentée et vérifiée, PR à ouvrir vers `develop`)
+- **Phase 3 — EDA** (implémentée et vérifiée, livrable dans `eda/`, PR vers `develop` à préparer)
 
 ## Current Goal
 
-- Livrer le Silver dataset (`pipelines/`) via une PR vers `develop` (issue #3).
+- Livrer le rapport EDA (`eda/univariate_analysis.md`, `eda/bivariate_analysis.md`, `eda/insights.md`) via une PR vers `develop` (issue #4).
 
 ## Completed
 
@@ -33,26 +33,40 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - revue légale : `docs/phase-1/legal-review.md` ; vérifications résumées dans `docs/phase-0/legal-assessment.md`.
   - minimisation : aucune donnée personnelle stockée (texte brut Koutchoumi non conservé).
 
-- **Phase 2 — Data cleaning** dans `pipelines/` + `docs/phase-2/` :
+- **Phase 2 — Data cleaning** (mergée dans `develop`, issue #3 close) dans `pipelines/` + `docs/phase-2/` :
   - package `pipelines/` : `geo.py` (référentiel seed + résolution), `parsing.py`, `adapters.py` (par source), `silver.py` (resolution, validation, dédup, quarantine, écriture), `report.py`, `__main__.py`.
   - sorties : `data/processed/silver_listings.parquet`, `quarantine_listings.parquet`, `docs/phase-2/cleaning-report.md`.
   - règles : types, villes/quartiers canoniques, catégories, valeurs bornées (`price_is_bound`), dédup (technique vs republication), aberrations signalées (jamais supprimées), invalides en quarantine.
   - construction réelle : Raw 3 078 → **2 992 lignes Silver**, **78 en quarantine** (cohérent avec ≈ 1 226 uniques : 1 970 republications).
   - tests `tests/unit/test_pipelines_*.py` (**19** tests) ; `ruff` sans erreur.
 
+- **Phase 3 — Analyse exploratoire (EDA)** (branche `phase/3-eda`, issue #4) :
+  - calcul des stats : `eda/compute_statistics.py` (calcule toutes les statistiques du Silver, écrit `eda/statistics.json`, artefact régénérable et ignoré par git).
+  - rendu des rapports : `eda/generate_reports.py` (rendu **purement dérivé** de `statistics.json` — aucun chiffre en dur — vers `eda/univariate_analysis.md`, `eda/bivariate_analysis.md`, `eda/insights.md`).
+  - résultats clés :
+    - 2 992 lignes Silver (Douala 2 811, Yaoundé 181).
+    - Distribution très asymétrique (skewness ≈ 35, kurtosis ≈ 1 412) → transformation `log1p` fortement recommandée (skewness ≈ 0,11 après).
+    - 2 564 prix bornés (85,7 %), 1 970 republications (65,8 %), 17 aberrations (lignes conservées).
+    - Quartiers sous-représentés : 172 quartiers distincts, dont 103 avec une seule observation ; 152 avec ≤ 10 observations → médianes non publiées en dessous de 30 observations.
+    - Biais de couverture : top-5 quartiers = 68,7 % des lignes, 582 observations sur des quartiers non reconnus.
+    - Pas de surface (`area_m2` absent), pas de date (`posted_at` absent), pas de meublé/parking/barrière → ces features sont inutilisables pour le MVP.
+    - `koutchoumi` ne contribue que 5 lignes → non représentatif ; `reference_local` 2 987 lignes.
+  - correction de bugs de génération (revue senior) : filtre `outlier_flags` (chaîne vide ≠ `NaN`, retenait à tort les 2 992 lignes), désalignement des médianes du top-5 quartiers, colonne « N chambres » affichant les effectifs, part « appartement » figée à 100 %, en-tête listant les colonnes au lieu des villes, et suppression de toutes les valeurs en dur (dates, pourcentages, moyennes).
+  - tests : `36 passed, 1 skipped` (toute la suite unitaire, avec `requests`, `SQLAlchemy`, `psycopg` installés) ; `ruff` sans erreur sur `eda/`.
+
 ## In Progress
 
-- Aucun (en attente d'ouverture de la PR de Phase 2).
+- Aucun (en attente de la PR de Phase 3).
 
 ## Next Up
 
-- Phase 3 — EDA (issue #4) sur le Silver dataset.
+- Phase 4 — Data marts (construction des marts à partir du Silver + des décisions de Phase 3).
 
 ## Open Questions
 
 - **Prix censurés** : conservés avec `price_is_bound` (borne inférieure) ; stratégie de pondération/exclusion à figer en Phases 5-6.
 - **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ?
-- **Référentiel géographique** : seed en place ; 582 quartiers Silver non reconnus à enrichir (Phase 3).
+- **Référentiel géographique** : seed en place ; 582 quartiers Silver non reconnus à enrichir (Phase 3 ou 4).
 - **Republications** : 1 970 lignes marquées `is_republication` ; décider si conservées/pondérées pour l'entraînement.
 - **Endpoints MINFI / INS** : documents stockés bruts, endpoints et formats à valider.
 - **Dataset tiers `deegeorgie`** : usage strictement local (sans licence), non redistribué.
@@ -80,3 +94,4 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Koutchoumi** : aucune CGU/ToS publiée ; structure observée = catégories `/<type>-to-rent-at-<city>-cameroon.html` (`?page=N`) + détails `/en/<id>/<slug>` (le slug encode ville/quartier/pièces/prix).
 - Le dataset `deegeorgie` **ne déclare aucune licence** → non versionné, usage local seulement.
 - Silver (Phase 2) : 3 078 bruts → 2 992 Silver / 78 quarantine ; `price_is_bound` 2 564 ; aberrations 17 ; quartiers non reconnus 582.
+- EDA (Phase 3) : 2 992 lignes → distribution asymétrique, 2 564 prix bornés, 1 970 republications, 17 aberrations, 582 quartiers non reconnus, pas de surface/date/meublé.

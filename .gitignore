@@ -32,6 +32,9 @@ data/samples/*
 !data/samples/.gitkeep
 !data/samples/README.md
 
+# --- Artefacts EDA régénérables (le livrable reste les rapports .md) ---
+eda/statistics.json
+
 # --- Artefacts ML ---
 ml/models/*
 !ml/models/.gitkeep

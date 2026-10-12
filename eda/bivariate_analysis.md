@@ -45,9 +45,9 @@ Top-5 par nombre d'observations (les plus fiables) :
 |---|---|---|---|
 | Makepe | 1,026 | 80,000 | 98.1 % |
 | Logpom | 318 | 90,000 | 94.3 % |
-| Bonamoussadi | 304 | 120,000 | 95.1 % |
+| Bonamoussadi | 306 | 120,000 | 94.4 % |
 | Bonapriso | 234 | 725,000 | 80.3 % |
-| Akwa I | 173 | 300,000 | 100.0 % |
+| Akwa | 224 | 350,000 | 86.6 % |
 
 Parmi les quartiers comptant au moins 30 observations :
 
@@ -57,21 +57,21 @@ Parmi les quartiers comptant au moins 30 observations :
 |---|---|---|
 | Bonapriso | 234 | 725,000 |
 | Bonanjo | 54 | 675,000 |
-| Bastos | 35 | 500,000 |
-| Akwa | 30 | 500,000 |
-| Bali | 96 | 300,000 |
+| Bastos | 37 | 500,000 |
+| Akwa | 224 | 350,000 |
+| Bali | 100 | 300,000 |
 
 **Les plus accessibles (médiane la plus faible) :**
 
 | Quartier | N | Médiane |
 |---|---|---|
 | Makepe | 1,026 | 80,000 |
-| Cite Ubo Palmiers | 32 | 90,000 |
+| Cité des Palmiers | 32 | 90,000 |
 | Logpom | 318 | 90,000 |
 | Malangue | 109 | 100,000 |
-| Kotto | 93 | 110,000 |
+| Kotto | 96 | 120,000 |
 
-- 582 observations portent sur des quartiers
+- 101 observations portent sur des quartiers
   **non reconnus** : signalées, non agrégées ici.
 
 ## 5. Effet surface, parking, meublé, barrière

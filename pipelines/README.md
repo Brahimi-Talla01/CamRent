@@ -75,8 +75,9 @@ pipelines/
 
 ## Limites connues
 
-- Le **référentiel de quartiers** est un **seed** : 582 lignes Silver ont un
-  quartier non reconnu (conservées, signalées). À enrichir en Phase 3.
+- Le **référentiel de quartiers** est un **seed** enrichi (issue #20) : il reste
+  101 lignes Silver à quartier non reconnu (conservées, signalées) — libellés
+  ambigus ou non vérifiables, volontairement non mappés.
 - Le **prix de Koutchoumi** est très souvent **borné** (2 564 lignes `price_is_bound`) :
   utilisable pour la tendance, à exclure ou pondérer pour l'entraînement (Phases 5-6).
 - La **surface** reste absente des sources collectées.

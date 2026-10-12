@@ -40,6 +40,11 @@ Voir `context/feature-specs/02-data-cleaning.md` et `pipelines/README.md`.
   - `republication` 1 970 (jeu `deegeorgie` fortement dupliqué → cohérent avec l'estimation Phase 0 d'≈ 1 226 uniques) ;
   - `price_is_bound` 2 564 ; aberrations signalées 17 ; quartiers non reconnus 582.
 
+> Note (issue #20) : le référentiel de quartiers a été enrichi après la Phase 3.
+> Rejouer `python -m pipelines silver` donne désormais **101** lignes à quartier
+> non reconnu et **2 001** republications (la fusion des alias affine la dédup).
+> Les volumes ci-dessus sont ceux mesurés en Phase 2, avant cet enrichissement.
+
 > Note : l'écriture **Parquet** (`pandas`/`pyarrow`) n'a pas pu être exécutée dans le
 > sandbox de développement (téléchargement trop lent) ; elle est couverte par le test
 > `test_write_outputs_columns` en CI.
@@ -57,7 +62,7 @@ Voir `context/feature-specs/02-data-cleaning.md` et `pipelines/README.md`.
 
 ## Points ouverts transmis à la Phase 3 (EDA)
 
-- **Référentiel de quartiers** à enrichir (582 quartiers non reconnus).
+- **Référentiel de quartiers** : enrichi en issue #20 (non reconnus 582 → 101) ; les libellés restants sont ambigus ou non vérifiables et restent signalés.
 - **Prix bornés** : part importante du dataset → stratégie de pondération/exclusion (Phases 5-6).
 - **Surface** toujours absente.
 - **Republications** : décider si elles sont conservées/pondérées pour l'entraînement.

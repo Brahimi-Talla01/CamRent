@@ -1,7 +1,7 @@
 # Rapport de nettoyage — Silver dataset
 
 **Phase :** 2 — Data cleaning
-**Généré le :** 2026-10-09 07:06 UTC
+**Généré le :** 2026-10-12 07:03 UTC
 **Source :** Raw immuable (`data/raw/`) → ne sont jamais modifiés.
 
 ## Récapitulatif
@@ -20,12 +20,12 @@
 | Ville absente ou hors périmètre — quarantine | 7 |
 | Prix ≤ 0 — quarantine | 1 |
 | Prix absent — quarantine | 52 |
-| Même logement republié — conservé et marqué `is_republication` | 1970 |
+| Même logement republié — conservé et marqué `is_republication` | 2001 |
 | Type de bien non reconnu — quarantine | 18 |
 
 - **Aberrations signalées** (gardées, `outlier_flags`) : 17
 - **Prix bornés** (minimums, `price_is_bound`) : 2564
-- **Quartiers non reconnus** (`neighborhood_recognized=false`) : 582
+- **Quartiers non reconnus** (`neighborhood_recognized=false`) : 101
 
 ## Répartition par source
 

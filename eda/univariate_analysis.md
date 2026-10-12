@@ -68,15 +68,15 @@ Recommandation pour la Phase 5 : entraîner sur `log1p(rent_price)` puis retrans
 
 | Reconnu | N | Moyenne | Médiane |
 |---|---|---|---|
-| Oui | 2,410 | 222,655 | 100,000 |
-| Non | 582 | 321,418 | 130,000 |
+| Oui | 2,891 | 238,691 | 100,000 |
+| Non | 101 | 332,773 | 150,000 |
 
 ## 5. Republications
 
 | Ligne republication ? | N | Médiane |
 |---|---|---|
-| Oui | 1,970 | 100,000 |
-| Non | 1,022 | 150,000 |
+| Oui | 2,001 | 100,000 |
+| Non | 991 | 150,000 |
 
 ## 6. Prix bornés (`price_is_bound = true`)
 
@@ -113,11 +113,11 @@ Les colonnes à 100 % manquant (`furnished`, `parking`, `gated`, `area_m2`, `pos
 
 ### 8.2 Cohérence ville / quartier
 
-- 34 quartiers canoniques reconnus utilisés
-  (Douala : 19, Yaoundé : 15).
+- 61 quartiers canoniques reconnus utilisés
+  (Douala : 35, Yaoundé : 26).
 - 0 quartier reconnu rattaché à plus d'une ville
   (attendu : 0 → cohérence ville/quartier vérifiée).
-- 582 observations portent sur des
+- 101 observations portent sur des
   quartiers non reconnus.
 
 ## 9. Valeurs aberrantes (`outlier_flags`)

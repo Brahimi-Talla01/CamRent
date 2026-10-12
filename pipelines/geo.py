@@ -5,6 +5,11 @@ Douala et Yaoundé, complété par une résolution tolérante (accents, casse,
 séparateurs) et un rapprochement flou. Les valeurs non reconnues ne sont **pas**
 supprimées : elles sont conservées telles quelles et signalées
 (`neighborhood_recognized = False`) pour enrichir le référentiel plus tard.
+
+Issue #20 : le seed a été enrichi de quartiers réels manquants et d'alias
+observés dans les annonces (sources vérifiées indiquées en commentaire sous
+`CANONICAL_NEIGHBORHOODS` et `EXTRA_ALIASES`). Aucune correspondance n'est
+inventée : les libellés ambigus ou non vérifiables restent non reconnus.
 """
 
 from __future__ import annotations
@@ -82,6 +87,26 @@ CANONICAL_NEIGHBORHOODS: Final[dict[str, tuple[str, ...]]] = {
         "Denibakari",
         "Nylon",
         "Zone Industrielle",
+        # Enrichissement issue #20 — quartiers doualais du seed manquants.
+        # Vérifiés sur le modèle Wikipédia « Palette Quartiers de Douala »
+        # (fr.wikipedia.org/wiki/Modèle:Palette_Quartiers_de_Douala) et, pour
+        # « Cité des Palmiers », sur les annonces Koutchoumi qui affichent
+        # « Cite Ubo Palmiers, Cité des palmiers ».
+        "Ange Raphaël",
+        "Bangue",
+        "Besseke",
+        "Bessengue",
+        "Bonadibong",
+        "Bonateki",
+        "Cité SIC",
+        "Koumassi",
+        "Logbaba",
+        "Malangue",
+        "Ngangue",
+        "Ngodi",
+        "Nkololoun",
+        "Nkongmondo",
+        "Youpwé",
         "Pk 12",
         "Pk 14",
         "Pk 16",
@@ -119,6 +144,19 @@ CANONICAL_NEIGHBORHOODS: Final[dict[str, tuple[str, ...]]] = {
         "Tsinga",
         "Ngoa-Ekelle",
         "Nkolndongo",
+        # Enrichissement issue #20 — quartiers de Yaoundé du seed manquants.
+        # Vérifiés sur fr.wikipedia.org/wiki/Quartiers_de_Yaoundé (liste par commune).
+        "Ahala",
+        "Cité Verte",
+        "Fouda",
+        "Jouvence",
+        "Kondengui",
+        "Messassi",
+        "Obili",
+        "Obobogo",
+        "Oyom-Abang",
+        "Simbock",
+        "Titi Garage",
     ),
 }
 
@@ -139,6 +177,36 @@ EXTRA_ALIASES: Final[dict[str, str]] = {
     "etoa meki": "Etoa-Meki",
     "centre ville": "Centre-Ville",
     "ngo a ekelle": "Ngoa-Ekelle",
+    # Enrichissement issue #20 — clés **normalisées** (`normalize_label`).
+    # Sous-quartiers d'Akwa ; variante « Cité UBO » = « Cité des Palmiers »
+    # (cf. annonces Koutchoumi « Cite Ubo Palmiers, Cité des palmiers »).
+    "akwa i": "Akwa",
+    "akwa ii": "Akwa",
+    "cite ubo palmiers": "Cité des Palmiers",
+    # « Mbangue » = variante de « Bangue » (zone Kotto Bangue, Douala V) :
+    # le rapprochement flou les confondait déjà (ratio 1,0).
+    "mbangue": "Bangue",
+    # Descriptions d'annonces nommant explicitement un quartier canonique.
+    "bali a la rue de la pharmacie la cote": "Bali",
+    "terminus bonamoussadi": "Bonamoussadi",
+    "rue kotto": "Kotto",
+    "kotto village": "Kotto",
+    "nouvelle route bessengue": "Bessengue",
+    "nouvelle route bessengue avant le pont": "Bessengue",
+    "nouvelle route du genie militaire axe lourd bonateki": "Bonateki",
+    "enface express union youpwe": "Youpwé",
+    "youpwe en face express union": "Youpwé",
+    "route presidence juste apres rond point bastos": "Bastos",
+    "bastos golf": "Bastos",
+    "biyem assi montee des soeurs": "Biyem-Assi",
+    "biyem assi maison blanche": "Biyem-Assi",
+    "petit marche odza": "Odza",
+    "citee verte": "Cité Verte",
+    "simbock tradex": "Simbock",
+    "monte jouvence": "Jouvence",
+    "montee jouvence": "Jouvence",
+    "jouvence maetur": "Jouvence",
+    "jouvence vers simbock": "Jouvence",
 }
 
 

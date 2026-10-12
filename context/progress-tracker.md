@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 3 — EDA** (implémentée et vérifiée, livrable dans `eda/`, PR vers `develop` à préparer)
+- **Phase 3 — EDA** (mergée dans `develop`, PR #19, issue #4 close) ; durcissement du référentiel géographique terminé (issue #20).
 
 ## Current Goal
 
-- Livrer le rapport EDA (`eda/univariate_analysis.md`, `eda/bivariate_analysis.md`, `eda/insights.md`) via une PR vers `develop` (issue #4).
+- Préparer la Phase 4 — Data marts, en s'appuyant sur les agrégats par quartier fiabilisés par l'enrichissement du référentiel (issue #20).
 
 ## Completed
 
@@ -33,14 +33,14 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - revue légale : `docs/phase-1/legal-review.md` ; vérifications résumées dans `docs/phase-0/legal-assessment.md`.
   - minimisation : aucune donnée personnelle stockée (texte brut Koutchoumi non conservé).
 
-- **Phase 2 — Data cleaning** (mergée dans `develop`, issue #3 close) dans `pipelines/` + `docs/phase-2/` :
+- **Phase 2 — Data cleaning** (mergée dans `develop`, issue #3 close) dans `pipelines/` + `docs/phase-2/` (volumes d'origine, avant l'enrichissement #20) :
   - package `pipelines/` : `geo.py` (référentiel seed + résolution), `parsing.py`, `adapters.py` (par source), `silver.py` (resolution, validation, dédup, quarantine, écriture), `report.py`, `__main__.py`.
   - sorties : `data/processed/silver_listings.parquet`, `quarantine_listings.parquet`, `docs/phase-2/cleaning-report.md`.
   - règles : types, villes/quartiers canoniques, catégories, valeurs bornées (`price_is_bound`), dédup (technique vs republication), aberrations signalées (jamais supprimées), invalides en quarantine.
   - construction réelle : Raw 3 078 → **2 992 lignes Silver**, **78 en quarantine** (cohérent avec ≈ 1 226 uniques : 1 970 republications).
   - tests `tests/unit/test_pipelines_*.py` (**19** tests) ; `ruff` sans erreur.
 
-- **Phase 3 — Analyse exploratoire (EDA)** (branche `phase/3-eda`, issue #4) :
+- **Phase 3 — Analyse exploratoire (EDA)** (mergée dans `develop`, PR #19, issue #4 close — chiffres ci-dessous **avant** l'enrichissement #20) :
   - calcul des stats : `eda/compute_statistics.py` (calcule toutes les statistiques du Silver, écrit `eda/statistics.json`, artefact régénérable et ignoré par git).
   - rendu des rapports : `eda/generate_reports.py` (rendu **purement dérivé** de `statistics.json` — aucun chiffre en dur — vers `eda/univariate_analysis.md`, `eda/bivariate_analysis.md`, `eda/insights.md`).
   - résultats clés :
@@ -54,9 +54,17 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - correction de bugs de génération (revue senior) : filtre `outlier_flags` (chaîne vide ≠ `NaN`, retenait à tort les 2 992 lignes), désalignement des médianes du top-5 quartiers, colonne « N chambres » affichant les effectifs, part « appartement » figée à 100 %, en-tête listant les colonnes au lieu des villes, et suppression de toutes les valeurs en dur (dates, pourcentages, moyennes).
   - tests : `36 passed, 1 skipped` (toute la suite unitaire, avec `requests`, `SQLAlchemy`, `psycopg` installés) ; `ruff` sans erreur sur `eda/`.
 
+- **Issue #20 — Enrichissement du référentiel géographique** (`pipelines/geo.py`) :
+  - 26 quartiers réels ajoutés au seed (15 à Douala, 11 à Yaoundé), vérifiés sur les palettes Wikipédia « Quartiers de Douala » et « Quartiers de Yaoundé ».
+  - alias tracés : sous-quartiers d'Akwa (`Akwa I`/`Akwa II` → `Akwa`), variante `Cite Ubo Palmiers` → `Cité des Palmiers` (confirmée par les annonces Koutchoumi), `Mbangue` → `Bangue`, et descriptions d'annonces nommant explicitement un quartier canonique.
+  - résultats : quartiers non reconnus **582 → 101 lignes** (19,5 % → 3,4 %), 138 → 78 libellés distincts ; quartiers canoniques utilisés 34 → 61 ; 0 conflit ville/quartier maintenu ; quarantine inchangée (78).
+  - conséquences mesurées : republications 1 970 → 2 001 (dédup technique affinée par la fusion des alias) ; rapports Phase 2 (`docs/phase-2/cleaning-report.md`) et EDA rejoués sans nouvelle valeur en dur.
+  - libellés volontairement laissés non reconnus (ambigus ou non vérifiables) : `Elig`, `DENVER`, `COAF`, `a`, noms de villes, descriptions libres.
+  - tests : `tests/unit/test_pipelines_geo.py` étendu (39 `passed`, 1 `skipped`) ; `ruff` sans erreur ; `python -m pipelines silver` puis EDA rejoués.
+
 ## In Progress
 
-- Aucun (en attente de la PR de Phase 3).
+- Aucun (en attente de la PR de l'issue #20).
 
 ## Next Up
 
@@ -66,7 +74,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 - **Prix censurés** : conservés avec `price_is_bound` (borne inférieure) ; stratégie de pondération/exclusion à figer en Phases 5-6.
 - **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ?
-- **Référentiel géographique** : seed en place ; 582 quartiers Silver non reconnus à enrichir (Phase 3 ou 4).
+- **Référentiel géographique** : seed enrichi (issue #20) ; 101 lignes (78 libellés distincts) restent non reconnues — descriptions d'annonces, libellés ambigus (`Elig`) ou non vérifiables (`DENVER`, `COAF`) conservés et signalés, sans mapping inventé.
 - **Republications** : 1 970 lignes marquées `is_republication` ; décider si conservées/pondérées pour l'entraînement.
 - **Endpoints MINFI / INS** : documents stockés bruts, endpoints et formats à valider.
 - **Dataset tiers `deegeorgie`** : usage strictement local (sans licence), non redistribué.
@@ -95,3 +103,4 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - Le dataset `deegeorgie` **ne déclare aucune licence** → non versionné, usage local seulement.
 - Silver (Phase 2) : 3 078 bruts → 2 992 Silver / 78 quarantine ; `price_is_bound` 2 564 ; aberrations 17 ; quartiers non reconnus 582.
 - EDA (Phase 3) : 2 992 lignes → distribution asymétrique, 2 564 prix bornés, 1 970 republications, 17 aberrations, 582 quartiers non reconnus, pas de surface/date/meublé.
+- Référentiel (issue #20) : 26 quartiers ajoutés et alias tracés ; non reconnus 582 → 101 (19,5 % → 3,4 %) ; quartiers canoniques utilisés 34 → 61 ; republications 1 970 → 2 001 ; 0 conflit ville/quartier.

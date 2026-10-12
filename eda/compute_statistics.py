@@ -29,6 +29,8 @@ SILVER_PATH = Path("data/processed/silver_listings.parquet")
 # Seuil d'observations minimal pour publier une médiane par quartier.
 MIN_NEIGHBORHOOD_N = 30
 # Seuil sous lequel un quartier est signalé comme sous-représenté.
+# Revus après l'enrichissement du référentiel (issue #20) : conservés — la
+# distribution reste très concentrée (78 quartiers à une seule observation).
 LOW_VOLUME_N = 10
 
 # Colonnes non exploitables car entièrement vides dans le Silver actuel.

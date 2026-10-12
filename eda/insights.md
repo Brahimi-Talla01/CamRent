@@ -13,7 +13,7 @@
   (Douala : 2,811, Yaoundé : 181).
 - `2,564` prix bornés (85.70%) :
   la cible est majoritairement un `> X` (borne inférieure), pas un prix exact.
-- `1,970` republications (65.84%) :
+- `2,001` republications (66.88%) :
   les données sont très dupliquées.
 - Distribution **très asymétrique** (skewness ≈ 35.0) :
   une **transformation log est nécessaire**.
@@ -35,8 +35,8 @@
 
 - **Douala** domine (93.95% des lignes) ;
   Yaoundé (181 lignes) est beaucoup plus petit.
-- 2,410 observations sur des quartiers reconnus,
-  582 sur des quartiers non reconnus
+- 2,891 observations sur des quartiers reconnus,
+  101 sur des quartiers non reconnus
   (noms à normaliser au référentiel).
 - Médianes par ville : Douala 100,000 FCFA
   (N = 2,811) vs Yaoundé 150,000 FCFA
@@ -59,28 +59,28 @@
 - 2,564 prix bornés
   (85.70%) : conservés avec `price_is_bound=true`,
   à pondérer/exclure à l'entraînement (Phases 5-6).
-- 1,970 republications
-  (65.84%) : à décider (conserver / pondérer / dédupliquer).
+- 2,001 republications
+  (66.88%) : à décider (conserver / pondérer / dédupliquer).
 
 ### 6. Quartiers sous-représentés
 
-- 172 quartiers distincts au total.
-- 103 n'apparaissent
+- 139 quartiers distincts au total.
+- 78 n'apparaissent
   qu'**une seule fois**.
-- 152 quartiers comptent
+- 119 quartiers comptent
   ≤ 10 observations (soit
-  299 lignes) : leurs statistiques sont
+  257 lignes) : leurs statistiques sont
   **non fiables** et ne sont pas publiées comme médianes de référence.
 - Aucune médiane par quartier n'est publiée en dessous de
   30 observations.
 
 ### 7. Biais de couverture
 
-- Les 5 quartiers les plus présents concentrent 68.7 % des
-  lignes et les 10 premiers 82.2 % → **fort biais de couverture**.
+- Les 5 quartiers les plus présents concentrent 70.5 % des
+  lignes et les 10 premiers 84.2 % → **fort biais de couverture**.
 - `price_is_bound=true` sur 85.70% des lignes :
   ces prix sont des bornes inférieures (`> X`), donc le loyer réel est ≥ la valeur observée.
-- 582 observations hors référentiel de quartiers :
+- 101 observations hors référentiel de quartiers :
   risque de zones populaires mal représentées.
 
 ### 8. Décisions de feature engineering (issues de l'EDA)

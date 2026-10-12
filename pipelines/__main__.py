@@ -1,8 +1,9 @@
 """CLI des pipelines CamRent.
 
-Exemple :
+Exemples :
 
     python -m pipelines silver --report docs/phase-2/cleaning-report.md
+    python -m pipelines load            # Silver Parquet → PostgreSQL (Phase 4)
 """
 
 from __future__ import annotations
@@ -19,7 +20,8 @@ logger = logging.getLogger("camrent.pipelines")
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="pipelines", description="Transformations CamRent (Phase 2 — Silver)."
+        prog="pipelines",
+        description="Transformations CamRent (Phase 2 — Silver ; Phase 4 — load).",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -28,6 +30,13 @@ def build_parser() -> argparse.ArgumentParser:
     silver_cmd.add_argument("--out-dir", type=Path, default=None, help="dossier de sortie")
     silver_cmd.add_argument("--report", type=Path, default=None, help="chemin du rapport (md)")
     silver_cmd.add_argument("--verbose", action="store_true")
+
+    load_cmd = sub.add_parser(
+        "load", help="charger le Silver Parquet dans PostgreSQL (table landing)"
+    )
+    load_cmd.add_argument("--database-url", type=str, default=None, help=argparse.SUPPRESS)
+    load_cmd.add_argument("--silver-path", type=Path, default=None, help="chemin du Parquet Silver")
+    load_cmd.add_argument("--verbose", action="store_true")
     return parser
 
 
@@ -55,6 +64,21 @@ def run_silver(raw_root: Path | None, out_dir: Path | None, report_path: Path | 
     return 0
 
 
+def run_load(silver_path: Path | None, database_url: str | None) -> int:
+    # Import paresseux : la sous-commande `silver` ne nécessite pas SQLAlchemy/psycopg.
+    from . import db  # noqa: PLC0415
+
+    try:
+        result = db.load_silver_to_postgres(silver_path=silver_path, database_url=database_url)
+    except (FileNotFoundError, RuntimeError, KeyError, ValueError, OSError) as exc:
+        print(f"[ERREUR] chargement impossible : {exc}", file=sys.stderr)
+        return 1
+
+    print(f"[OK] Chargé : {result['rows']} lignes → {result['table']}")
+    print(f"     depuis : {result['silver_path']}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     logging.basicConfig(
@@ -63,6 +87,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.command == "silver":
         return run_silver(args.raw_root, args.out_dir, args.report)
+    if args.command == "load":
+        return run_load(args.silver_path, args.database_url)
     build_parser().print_help()
     return 1
 

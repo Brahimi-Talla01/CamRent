@@ -45,6 +45,9 @@ Geloka est **ignoré** ici : ce sont des médianes agrégées, pas des annonces.
 ```bash
 # nécessite pandas + pyarrow pour l'écriture Parquet
 python -m pipelines silver --report docs/phase-2/cleaning-report.md
+
+# Phase 4 : charger le Silver dans PostgreSQL (DATABASE_URL requis)
+python -m pipelines load
 ```
 
 Options : `--raw-root`, `--out-dir`, `--report`.

@@ -18,6 +18,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Phase 4 : transformations SQL versionnées (dbt-core + adaptateur PostgreSQL).
+# Installez via : pip install -e '.[transform]'
+transform = [
+    "dbt-postgres",
+]
 ml = [
     "scikit-learn",
     "mlflow",

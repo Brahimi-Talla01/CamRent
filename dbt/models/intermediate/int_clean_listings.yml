@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: int_clean_listings
+    description: >
+      Vue intermédiaire : expose stg_listings avec ses drapeaux de qualité,
+      prêt à alimenter les facts/dimensions. Grain inchangé : une ligne par
+      ligne Silver.
+    columns:
+      - name: listing_key
+        tests:
+          - unique
+          - not_null
+      - name: rent_price
+        tests:
+          - not_null
+      - name: city
+        tests:
+          - not_null

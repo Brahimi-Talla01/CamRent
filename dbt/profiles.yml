@@ -1,0 +1,28 @@
+# Profil dbt CamRent — configuration via variables d'environnement
+# (aucun secret en dur ; cf. code-standards.md et AGENTS.md §9).
+#
+# dbt lit automatiquement ce fichier quand il est lancé depuis `dbt/`. Variables attendues :
+#   DATABASE_URL  — postgresql://user:motdepasse@hote:port/base
+#   DBT_TARGET    — `dev` (défaut) ou `prod` (même base au MVP)
+
+camrent:
+  target: "{{ env_var('DBT_TARGET', 'dev') }}"
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('DBT_HOST') }}"
+      port: "{{ env_var('DBT_PORT') | as_number }}"
+      user: "{{ env_var('DBT_USER') }}"
+      password: "{{ env_var('DBT_PASSWORD') }}"
+      dbname: "{{ env_var('DBT_DBNAME') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'analytics') }}"
+      threads: 4
+    prod:
+      type: postgres
+      host: "{{ env_var('DBT_HOST') }}"
+      port: "{{ env_var('DBT_PORT') | as_number }}"
+      user: "{{ env_var('DBT_USER') }}"
+      password: "{{ env_var('DBT_PASSWORD') }}"
+      dbname: "{{ env_var('DBT_DBNAME') }}"
+      schema: "{{ env_var('DBT_SCHEMA', 'analytics') }}"
+      threads: 4

@@ -1,0 +1,30 @@
+version: 2
+
+# Table d'atterrissage dans le schéma `landing` : copie du Silver Parquet
+# chargée par `python -m pipelines load` (pipelines/db.py). La donnée brute
+# reste dans `data/raw/` (immuable) ; cette table est une copie dérivée du
+# Silver nettoyé, rejouable à tout moment.
+
+sources:
+  - name: landing
+    description: >
+      Atterrissage du Silver dataset (Phase 2) dans PostgreSQL.
+      Chargée par `python -m pipelines load` depuis
+      data/processed/silver_listings.parquet.
+    schema: landing
+    tables:
+      - name: silver_listings
+        description: >
+          Grain : une ligne par annonce nettoyée (après dédup technique et
+          validation de la Phase 2). 2 992 lignes attendues au dernier rejeu.
+        columns:
+          - name: source_listing_id
+            description: Identifiant de l'annonce chez la source d'origine.
+            tests:
+              - not_null
+          - name: source
+            tests:
+              - not_null
+          - name: rent_price
+            tests:
+              - not_null

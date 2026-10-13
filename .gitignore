@@ -38,6 +38,9 @@ eda/statistics.json
 # --- Artefacts ML ---
 ml/models/*
 !ml/models/.gitkeep
+# Métriques régénérables des baselines (le livrable est le rapport .md)
+ml/artifacts/*
+!ml/artifacts/.gitkeep
 
 # --- dbt ---
 dbt/target/

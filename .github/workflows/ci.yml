@@ -28,10 +28,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Dépendances d'exécution nécessaires aux tests : `sqlalchemy` est requise
-          # par le chargeur Silver → PostgreSQL (Phase 4), testé avec un moteur simulé.
+          # par le chargeur Silver → PostgreSQL (Phase 4), `scikit-learn` par les
+          # métriques des baselines ML (Phase 5). Les deux sont testées avec des
+          # moteurs/données simulés (aucune base requise en CI).
           # (l'installation du paquet via pyproject sera activée quand le backend de
           # build sera figé).
-          pip install ruff pytest requests pandas pyarrow sqlalchemy
+          pip install ruff pytest requests pandas pyarrow sqlalchemy scikit-learn
 
       - name: Lint (ruff)
         run: ruff check .

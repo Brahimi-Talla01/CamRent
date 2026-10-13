@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 5 — Baseline ML** en cours (branche `phase/5-baseline-ml`) ; Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
+- **Phase 6 — Modèles ML** en cours (branche `phase/6-modeles-ml`) ; Phase 5 mergée (PR #26, squash `38ad713`), Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
 
 ## Current Goal
 
-- Terminer et vérifier la Phase 5 : baselines mesurées sur `mart_ml_dataset` (MAE/RMSE/R² par segment, seuil de référence fixé) ; reste PR → revue → merge.
+- Terminer et vérifier la Phase 6 : comparer les familles de modèles sur la même séparation que la Phase 5, retenir celui qui bat la baseline de façon vérifiable, construire une fourchette validée et rendre le modèle explicable ; reste PR → revue → merge.
 
 ## Completed
 
@@ -92,7 +92,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     insertion ; validé par un rejeu réel (2 992 lignes après deux `load`, puis
     `dbt build` 95/95).
 
-- **Phase 5 — Baseline ML** (branche `phase/5-baseline-ml`, en revue) :
+- **Phase 5 — Baseline ML** (mergée dans `develop` via la PR #26, squash `38ad713`) :
   - `ml/src/` : `config`, `data` (mart `analytics_marts.mart_ml_dataset`, scénarios), `split`
     (70/15/15, graine `20261009`), `baselines` (`baseline_global`, `baseline_city`,
     `baseline_neighborhood` + chaîne de repli explicite), `evaluation` (MAE/RMSE/R²/MedAE,
@@ -123,24 +123,49 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## In Progress
 
-- Phase 5 — Baseline ML : code + docs + rapport terminés sur `phase/5-baseline-ml`,
-  en attente de PR / CI / revue / merge.
+- **Phase 6 — Modèles ML** (issue #7, branche `phase/6-modeles-ml`) : code, tests et
+  rapport terminés, exécution réelle vérifiée ; reste PR → CI → revue → merge.
+  - `ml/src/` : `features` (imputation et profondeur de marché ajustées sur
+    l'entraînement), `models` (6 familles × cible brute/`log1p` = 12 candidats),
+    `training` (comparaison sur la même séparation, sélection multi-graines),
+    `uncertainty` (split-conformal vs régression quantile), `interpretability`,
+    `persistence`, `model_report`, CLI `python -m ml.src models`.
+  - **modèle retenu : `random_forest_log1p`** — MAE validation **75 425 FCFA**
+    contre 97 079 pour `baseline_neighborhood` (**−22,31 %**, sous le seuil de
+    79 773 FCFA) ; MedAE 20 710 contre 40 000 (−48 %).
+  - sélection **en deux temps** : présélection sur la graine de référence, puis
+    choix du **gain médian** face à la baseline recalculée sur chaque graine
+    (3 graines) — la baseline est battue sur 3/3 (gain médian 12,35 %, minimal
+    11,99 %), le seuil IC n'étant franchi que sur 1/3.
+  - fourchette : régression quantile retenue (couverture 90,7 % en validation
+    comme en test, visée 90 % ; largeur médiane 135 995 FCFA en test).
+  - explicabilité : quartier (+33 756 FCFA d'erreur médiane si permuté), chambres
+    (+14 190), salles de bain (+10 182) ; dépendance partielle monotone ; exemple
+    local expliqué dans le rapport.
+  - tests : `tests/unit/test_ml_{features,models,training,uncertainty,interpretability}.py`
+    (**59 tests**) ; suite complète 140 passed / 1 skipped ; `ruff` sans erreur ;
+    CI : `lightgbm` ajouté à l'installation (le zoo doit pouvoir être testé).
+  - deux bugs corrigés en cours de route : sélection qui ne consultait qu'une
+    graine (contre la règle documentée) et accès non défendu au bloc de robustesse
+    d'un candidat hors présélection — les deux couverts par des tests de régression.
 
 ## Next Up
 
-- Phase 6 — Modèles ML (issue #7) : démontrer un gain réel sous le seuil fixé
-  (MAE validation < 79 773 FCFA, confirmé sur la MedAE et plusieurs graines).
+- Phase 7 — Registre de modèles (MLflow) et suivi des runs (issue #8).
+- Phase 8 — API d'inférence servie à partir de `ml/models/rent_model_v1.joblib`.
+- Tâche ouverte : pondération/explicitation des prix bornés et des républications
+  dans l'entraînement.
 
 ## Open Questions
 
-- **Prix censurés** : conservés avec `price_is_bound` (borne inférieure, 2 564 lignes sur 2 992) ; le seuil de la Phase 5 est mesuré sur toutes les observations, un scénario de sensibilité quantifie l'effet — stratégie de pondération/exclusion à figer en Phase 6.
-- **Gain ML à démontrer** : règle fixée en Phase 5 — MAE validation sous la borne basse de l'IC 95 % bootstrap de la meilleure baseline (79 773 FCFA, soit −17,83 %), à confirmer sur la MedAE (+90,8 % d'écart MAE validation → test, ~12 % pour la MedAE).
+- **Prix censurés** : conservés avec `price_is_bound` (borne inférieure, 2 564 lignes sur 2 992) ; le seuil de la Phase 5 et la sélection de la Phase 6 sont mesurés sur toutes les observations — stratégie de pondération/explicitation **toujours non figée** (issue ouverte, à traiter avec les républications).
+- **Gain ML à démontrer** : **démontré** en Phase 6 — `random_forest_log1p` à 75 425 FCFA de MAE de validation (seuil 79 773), MedAE divisée par près de deux, gain confirmé sur 3 séparations (médian 12,35 %). Le seuil IC n'est franchi que sur 1 graine sur 3 : les arbitrages produit ne doivent pas reposer sur un écart inférieur à cette marge.
 - **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ?
 - **Référentiel géographique** : seed enrichi (issue #20) ; 101 lignes (78 libellés distincts) restent non reconnues — descriptions d'annonces, libellés ambigus (`Elig`) ou non vérifiables (`DENVER`, `COAF`) conservés et signalés, sans mapping inventé.
 - **Republications** : 2 001 lignes marquées `is_republication` ; décider si conservées/pondérées pour l'entraînement (le drapeau est exposé dans `mart_ml_dataset` pour une décision explicite en Phase 5-6).
 - **Endpoints MINFI / INS** : documents stockés bruts, endpoints et formats à valider.
 - **Dataset tiers `deegeorgie`** : usage strictement local (sans licence), non redistribué.
-- Méthode d'intervalle de prédiction du produit (quantiles, bootstrap, quantile regression) — Phase 6 : le bootstrap est déjà utilisé pour l'IC de la MAE (Phase 5).
+- Méthode d'intervalle de prédiction du produit : **résolu en Phase 6** — régression quantile (gradient boosting aux quantiles 5 % / 95 %), retenue sur le split-conformal car elle couvre le niveau visé (90,7 % en validation et en test) avec une fourchette médiane deux fois plus étroite ; la calibration n'utilise que la validation, la couverture de test sert de vérification.
 - Séparation train/validation/test : **aléatoire** retenue (70/15/15, graine fixe) — `posted_at` vide et `collected_at` sur une seule journée, donc séparation chronologique impossible (Phase 5). À revoir si une collecte étalée dans le temps devient disponible.
 - Périmètre géographique exact du MVP (liste des quartiers).
 
@@ -170,4 +195,6 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - Phase 4 (conformité) : vérification complète de la phase (chaîne rejouée, base interrogée, manifeste dbt, catalogue) — 0 orphelin sur les 4 clés, 0 violation du seuil N<30, drapeaux alignés sur le Silver (2 001 / 2 564 / 17 / 101) ; écarts corrigés : tests de bornes et relations manquants, invariant N<30 gardé par un test, champ Fréquence du catalogue, nommage des schémas, commentaire CI obsolète. Piste non traitée : `bathrooms` atteint 80 dans le Silver sans être signalé (contrôle Phase 2).
 - Phase 4 (suite) : PR #23 mergée en squash (`75775b9`, issue #5 close) ; chargement rejouable (vidage `TRUNCATE` + réinsertion, table jamais droppée) et CI qui installe désormais `sqlalchemy` afin d'exécuter réellement les tests du chargeur.
 - Phase 4 : PostgreSQL docker-compose sur **5433** (5432 occupé par le PostgreSQL système local, mot de passe `camrent` inconnu) ; dbt installé dans `.venv` (dbt-core 1.12.5, dbt-postgres 1.11.0, compatible Python 3.14) ; connexion dbt via variables `DBT_*` (profiles.yml) ; `pipelines load` via `DATABASE_URL`.
+- **Phase 6** : exécution réelle sur `mart_ml_dataset` (2 992 obs) — 12 candidats comparés ; les trois ensembles d'arbres sur `log1p` sont au coude-à-coude (75 161 / 75 281 / 75 425 FCFA), très loin devant les linéaires (82 032 à 151 066) ; la transformation `log1p` vaut 4 000 à 10 000 FCFA par famille. LightGBM non retenu (dépendance et temps d'entraînement sans gain démontré), mais comparé et documenté. Le rang de la graine de référence ne suffit pas : `random_forest_log1p` 3ᵉ sur la graine de référence, 1ᵉʳ sur les 2 autres.
+- **Phase 6** : conteneur `camrent-postgres` en écoute sur le **port 5433** alors que `.env` porte `POSTGRES_PORT=5432` — l'URL réelle est `postgresql://camrent:change-me@localhost:5433/camrent` (écrit dans `ml/README.md`).
 - Phase 4 : `dbt build` 95/95 (12 modèles + 83 tests) ; volumes vérifiés en base : 2 992 lignes traversant toutes les couches ; mart_city_prices : Douala N=2 811 méd. 100 000, Yaoundé N=181 méd. 150 000 (conforme EDA) ; 253 groupes quartier×type×chambres ; médiane null strictement sous N=30 ; 101 non reconnus / 2 001 républications / 2 564 prix bornés / 17 aberrations conservés avec drapeaux.

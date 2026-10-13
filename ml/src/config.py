@@ -77,3 +77,44 @@ MIN_SEGMENT_N: Final[int] = int(os.environ.get("CAMRENT_MIN_SEGMENT_N", "30"))
 
 # Nombre maximal de quartiers détaillés dans le rapport (tri par volume).
 TOP_NEIGHBORHOODS: Final[int] = 10
+
+# --- Phase 6 : modèles ML -------------------------------------------------
+
+# Rapport de la Phase 6 (les artefacts de modèle restent ignorés par git).
+MODEL_REPORT_PATH: Final[Path] = PROJECT_ROOT / "docs" / "phase-6" / "model-report.md"
+MODELS_DIR: Final[Path] = Path(
+    os.environ.get("CAMRENT_MODELS_DIR", PROJECT_ROOT / "ml" / "models")
+)
+MODEL_ARTIFACT_NAME: Final[str] = "rent_model_v1"
+
+# Fourchette de prédiction : niveau de confiance visé et effectif de validation
+# utilisé pour calibrer l'intervalle (split-conformal).
+INTERVAL_ALPHA: Final[float] = 0.10
+
+# Robustesse : la MAE de la Phase 5 s'est révélée sensible à l'échantillon, donc
+# chaque candidat sérieux est réévalué sur plusieurs séparations (graines).
+ROBUSTNESS_SEEDS: Final[tuple[int, ...]] = (20261009, 7, 1234)
+
+# Effectif de la présélection : seuls les meilleurs candidats de la graine de
+# référence sont réévalués sur plusieurs graines (coût), puis départagés sur le
+# gain **médian** face à la baseline de chaque graine. Sélectionner sur une
+# seule séparation reviendrait à choisir du bruit (Phase 5).
+SHORTLIST_SIZE: Final[int] = 3
+
+# Explicabilité : permutations par feature et dépendance partielle.
+PERMUTATION_REPEATS: Final[int] = 10
+PARTIAL_DEPENDENCE_POINTS: Final[int] = 5
+
+# Sauvegarde du modèle retenu (nom de fichier sans extension logique).
+MODEL_METADATA_KEYS: Final[tuple[str, ...]] = (
+    "nom",
+    "famille",
+    "cible_transformee",
+    "features",
+    "hyperparametres",
+    "graine",
+    "metriques",
+    "seuil_phase_5",
+    "intervalle",
+    "versions",
+)

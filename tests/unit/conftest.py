@@ -7,6 +7,7 @@ attendues soient calculables à la main.
 
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -48,4 +49,58 @@ def ml_frame() -> pd.DataFrame:
     )
     frame["collected_at"] = "2026-10-09T07:05:36+00:00"
     frame["posted_at"] = None
+    return frame
+
+
+@pytest.fixture
+def ml_dataset() -> pd.DataFrame:
+    """Dataset synthétique déterministe (300 lignes) pour l'entraînement.
+
+    Le prix est construit comme une fonction monotone de la ville, du quartier,
+    du type, des chambres et des salles de bain (plus un bruit faible) : un
+    modèle correct doit donc pouvoir battre la moyenne globale, et les tests
+    d'importance de variables doivent retrouver les bons facteurs.
+    """
+    rng = np.random.default_rng(20261009)
+    size = 300
+    cities = rng.choice(["Douala", "Yaoundé"], size=size, p=[0.8, 0.2])
+    neighborhoods_by_city = {
+        "Douala": ["Makepe", "Bonamoussadi", "Akwa"],
+        "Yaoundé": ["Bastos", "Odza"],
+    }
+    neighborhoods = np.array(
+        [rng.choice(neighborhoods_by_city[city]) for city in cities], dtype=object
+    )
+    property_types = rng.choice(["apartment", "studio"], size=size, p=[0.75, 0.25])
+    bedrooms = rng.integers(1, 5, size=size)
+    bathrooms = rng.integers(1, 4, size=size)
+    neighborhood_bonus = np.where(
+        np.isin(neighborhoods, ["Bonamoussadi", "Bastos"]), 40_000, 0
+    )
+    base = (
+        np.where(cities == "Douala", 60_000, 90_000)
+        + neighborhood_bonus
+        + bedrooms * 25_000
+        + bathrooms * 8_000
+        + np.where(property_types == "studio", -20_000, 0)
+    )
+    price = np.clip((base * rng.normal(1.0, 0.05, size=size)).round(-3), 1, None)
+
+    frame = pd.DataFrame(
+        {
+            "listing_key": [f"s{index:04d}" for index in range(size)],
+            "city": cities,
+            "neighborhood": neighborhoods,
+            "property_type": property_types,
+            "bedrooms": bedrooms,
+            "bathrooms": bathrooms,
+            "target_rent_price": price,
+            "price_is_bound": rng.random(size) < 0.2,
+            "is_republication": rng.random(size) < 0.1,
+            "outlier_flags": "",
+            "neighborhood_recognized": True,
+            "collected_at": "2026-10-09T07:05:36+00:00",
+            "posted_at": None,
+        }
+    )
     return frame

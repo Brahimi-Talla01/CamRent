@@ -1,0 +1,36 @@
+# Projet dbt CamRent — Phase 4 (Data warehouse / marts).
+#
+# Conventions (context/code-standards.md) :
+# - `stg_*` staging, `int_*` intermediate, `fct_*` faits, `dim_*` dimensions,
+#   `mart_*` marts.
+# - Les agrégats de marché embarquent toujours le nombre d'observations
+#   (`n_observation`) : invariant 8 d'architecture-context.md.
+# - Aucune exclusion silencieuse de ligne : republications, prix bornés et
+#   quartiers non reconnus restent dans les jeux de données, signalés par
+#   des drapeaux (invariants 5 et 8).
+# - Pas de feature dépendante de la cible (`rent_per_m2` interdit) dans
+#   `mart_ml_dataset`.
+
+name: camrent
+version: 1.0.0
+config-version: 2
+
+profile: camrent
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+# Cibles tabulaires générées localement (jamais versionnées).
+clean-targets:
+  - target
+  - dbt_packages
+
+models:
+  camrent:
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table

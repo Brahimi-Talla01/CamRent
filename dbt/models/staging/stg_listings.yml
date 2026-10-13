@@ -1,0 +1,37 @@
+version: 2
+
+models:
+  - name: stg_listings
+    description: >
+      Vue de staging : lignes Silver typées, une par observation du Silver
+      (aucun filtrage). Grain : une ligne par ligne silver_listings.
+    columns:
+      - name: listing_key
+        description: Clé technique = nième source (source_file + source_listing_id).
+        tests:
+          - unique
+          - not_null
+      - name: source_name
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['koutchoumi', 'reference_local', 'geloka', 'user_submission']
+      - name: city
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Douala', 'Yaoundé']
+      - name: neighborhood
+        tests:
+          - not_null
+      - name: property_type
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['studio', 'apartment', 'house', 'office', 'shop', 'warehouse', 'room', 'land']
+      - name: rent_price
+        tests:
+          - not_null

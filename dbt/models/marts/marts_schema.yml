@@ -1,0 +1,185 @@
+version: 2
+
+models:
+  - name: dim_city
+    description: >
+      Dimension villes : une ligne par ville canonique. `n_observations`
+      indique le volume Silver sous-jacent (invariant 8).
+    columns:
+      - name: city_name
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Douala', 'Yaoundé']
+      - name: n_observations
+        tests:
+          - not_null
+
+  - name: dim_neighborhood
+    description: >
+      Dimension quartiers : une ligne par (ville, quartier) tel qu'observé.
+      `is_canonical` signale les libellés reconnus par le référentiel seed
+      (issue #20) ; les libellés non reconnus restent listés, jamais mappés.
+    columns:
+      - name: city_name
+        tests:
+          - not_null
+      - name: neighborhood_name
+        tests:
+          - not_null
+      - name: is_canonical
+        tests:
+          - not_null
+
+  - name: dim_property_type
+    description: >
+      Dimension types de logement : une ligne par type canonique.
+    columns:
+      - name: property_type_name
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['studio', 'apartment', 'house', 'office', 'shop', 'warehouse', 'room', 'land']
+      - name: n_observations
+        tests:
+          - not_null
+
+  - name: dim_date
+    description: >
+      Dimension dates : une ligne par date observée (publication ou collecte).
+      Construite depuis les données réelles, pas de calendrier artificiel.
+    columns:
+      - name: date_day
+        tests:
+          - unique
+          - not_null
+      - name: year
+        tests:
+          - not_null
+      - name: month
+        tests:
+          - not_null
+      - name: day
+        tests:
+          - not_null
+
+  - name: fct_rent_observations
+    description: >
+      Fait des observations : une ligne par observation Silver. Toute
+      statistique de marché dérive de ce fait (charte de grain unique).
+    columns:
+      - name: listing_key
+        tests:
+          - unique
+          - not_null
+      - name: city_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_city')
+                field: city_name
+      - name: rent_price
+        tests:
+          - not_null
+
+  - name: fct_listings
+    description: >
+      Fait des annonces : grain identique à fct_rent_observations, colonnes
+      source conservées pour la traçabilité (Plan Technique §29).
+    columns:
+      - name: listing_key
+        tests:
+          - unique
+          - not_null
+      - name: source_listing_id
+        tests:
+          - not_null
+
+  - name: mart_neighborhood_prices
+    description: >
+      Stats de marché par (ville, quartier, type, chambres). Grain : une
+      ligne par combinaison. `median_rent_price` est null sous le seuil de
+      publication (var min_publish_n), N affiché en toutes circonstances
+      (invariant 8).
+    columns:
+      - name: city
+        tests:
+          - not_null
+      - name: neighborhood
+        tests:
+          - not_null
+      - name: property_type
+        tests:
+          - not_null
+      - name: n_observations
+        tests:
+          - not_null
+      - name: mean_rent_price
+        tests:
+          - not_null
+
+  - name: mart_city_prices
+    description: >
+      Stats de marché par ville. N d'observations toujours présent.
+    columns:
+      - name: city
+        tests:
+          - unique
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Douala', 'Yaoundé']
+      - name: n_observations
+        tests:
+          - not_null
+      - name: median_rent_price
+        tests:
+          - not_null
+
+  - name: mart_property_prices
+    description: >
+      Stats de marché par (type, ville). N d'observations toujours présent.
+    columns:
+      - name: property_type
+        tests:
+          - not_null
+      - name: city
+        tests:
+          - not_null
+      - name: n_observations
+        tests:
+          - not_null
+      - name: median_rent_price
+        tests:
+          - not_null
+
+  - name: mart_ml_dataset
+    description: >
+      Dataset ML : features du MVP + cible `target_rent_price`. Sans
+      `rent_per_m2` (data leakage) ; drapeaux qualité exposés pour
+      pondération/exclusion explicite en Phase 5-6.
+    columns:
+      - name: listing_key
+        tests:
+          - unique
+          - not_null
+      - name: city
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Douala', 'Yaoundé']
+      - name: neighborhood
+        tests:
+          - not_null
+      - name: property_type
+        tests:
+          - not_null
+      - name: target_rent_price
+        tests:
+          - not_null

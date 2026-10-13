@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import config
+from .markdown import gap_percent, number, relative_gap, table
 
 SPLIT_LABELS = {"train": "entraînement", "validation": "validation", "test": "test"}
 SEGMENT_FAMILIES = (
@@ -19,30 +20,7 @@ SEGMENT_FAMILIES = (
     ("niveau_de_prix", "Niveau de prix (quartiles calculés sur l'entraînement)"),
     ("quartier", "Quartier (ville / quartier)"),
 )
-SEPARATOR = "\u202f"  # espace insécable fine (séparateur de milliers)
-
-
-def _number(value: Any, *, decimals: int = 0) -> str:
-    """Formate un nombre (séparateur de milliers) ; `None` devient `—`."""
-    if value is None:
-        return "—"
-    if decimals == 0:
-        return f"{round(float(value)):,}".replace(",", SEPARATOR)
-    return f"{float(value):,.{decimals}f}".replace(",", SEPARATOR)
-
-
-def _table(headers: list[str], rows: list[list[str]]) -> list[str]:
-    """Table markdown simple."""
-    lines = [
-        "| " + " | ".join(headers) + " |",
-        "|" + "|".join(["---"] * len(headers)) + "|",
-    ]
-    lines.extend("| " + " | ".join(row) + " |" for row in rows)
-    lines.append("")
-    return lines
-
-
-def _global_table(blocks: dict[str, Any]) -> list[str]:
+def _globaltable(blocks: dict[str, Any]) -> list[str]:
     """MAE / RMSE / R² par ensemble, pour chaque baseline."""
     headers = [
         "Baseline",
@@ -63,22 +41,22 @@ def _global_table(blocks: dict[str, Any]) -> list[str]:
         rows.append(
             [
                 f"`{name}`",
-                _number(metrics["train"]["n"]),
-                _number(metrics["train"]["mae"]),
-                _number(metrics["validation"]["mae"]),
-                _number(metrics["validation"]["medae"]),
-                _number(metrics["validation"]["rmse"]),
-                _number(metrics["validation"]["r2"], decimals=3),
-                _number(metrics["test"]["mae"]),
-                _number(metrics["test"]["medae"]),
-                _number(metrics["test"]["rmse"]),
-                _number(metrics["test"]["r2"], decimals=3),
+                number(metrics["train"]["n"]),
+                number(metrics["train"]["mae"]),
+                number(metrics["validation"]["mae"]),
+                number(metrics["validation"]["medae"]),
+                number(metrics["validation"]["rmse"]),
+                number(metrics["validation"]["r2"], decimals=3),
+                number(metrics["test"]["mae"]),
+                number(metrics["test"]["medae"]),
+                number(metrics["test"]["rmse"]),
+                number(metrics["test"]["r2"], decimals=3),
             ]
         )
-    return _table(headers, rows)
+    return table(headers, rows)
 
 
-def _robustness_table(scenarios: dict[str, Any]) -> list[str]:
+def _robustnesstable(scenarios: dict[str, Any]) -> list[str]:
     """Écart validation → test de la MAE et de l'erreur médiane, par baseline."""
     headers = [
         "Scénario",
@@ -99,30 +77,15 @@ def _robustness_table(scenarios: dict[str, Any]) -> list[str]:
                 [
                     f"`{scenario_name}`",
                     f"`{name}`",
-                    _number(validation["mae"]),
-                    _number(test["mae"]),
-                    _relative_gap(validation["mae"], test["mae"]),
-                    _number(validation["medae"]),
-                    _number(test["medae"]),
-                    _relative_gap(validation["medae"], test["medae"]),
+                    number(validation["mae"]),
+                    number(test["mae"]),
+                    relative_gap(validation["mae"], test["mae"]),
+                    number(validation["medae"]),
+                    number(test["medae"]),
+                    relative_gap(validation["medae"], test["medae"]),
                 ]
             )
-    return _table(headers, rows)
-
-
-def _gap_percent(validation: Any, test: Any) -> float | None:
-    """Écart relatif validation → test, en pourcentage signé."""
-    if validation in (None, 0):
-        return None
-    return 100.0 * (float(test) - float(validation)) / float(validation)
-
-
-def _relative_gap(validation: Any, test: Any) -> str:
-    """Écart relatif validé → test formaté (ou `—`)."""
-    gap = _gap_percent(validation, test)
-    if gap is None:
-        return "—"
-    return f"{'+' if gap >= 0 else '−'}{_number(abs(gap), decimals=1)} %"
+    return table(headers, rows)
 
 
 def _segment_rows(
@@ -155,7 +118,7 @@ def _segment_rows(
     rows: list[list[str]] = []
     for label in ordered:
         marker = " *" if label in below else ""
-        row = [f"{label}{marker}", _number(counts[label])]
+        row = [f"{label}{marker}", number(counts[label])]
         for name in names:
             match = next(
                 (
@@ -165,12 +128,12 @@ def _segment_rows(
                 ),
                 None,
             )
-            row.append(_number(match["mae"]) if match else "—")
+            row.append(number(match["mae"]) if match else "—")
         rows.append(row)
     return rows, any(label in below for label in ordered)
 
 
-def _level_table(blocks: dict[str, Any], split_name: str) -> list[str]:
+def _leveltable(blocks: dict[str, Any], split_name: str) -> list[str]:
     """Quel niveau de prédiction (groupe ou repli) a servi pour chaque baseline."""
     names = list(blocks)
     levels: list[str] = []
@@ -185,14 +148,14 @@ def _level_table(blocks: dict[str, Any], split_name: str) -> list[str]:
         rows.append(
             [
                 f"`{name}`",
-                _number(sum(counts.values())),
-                *[_number(counts.get(level, 0)) for level in levels],
+                number(sum(counts.values())),
+                *[number(counts.get(level, 0)) for level in levels],
             ]
         )
-    return _table(headers, rows)
+    return table(headers, rows)
 
 
-def _threshold_table(scenarios: dict[str, Any]) -> list[str]:
+def _thresholdtable(scenarios: dict[str, Any]) -> list[str]:
     """Seuil de référence par scénario."""
     headers = [
         "Scénario",
@@ -208,22 +171,22 @@ def _threshold_table(scenarios: dict[str, Any]) -> list[str]:
     for name, scenario in scenarios.items():
         threshold = scenario["seuil_reference_validation"]
         interval = (
-            f"{_number(threshold['mae_borne_basse_ic'])} – "
-            f"{_number(threshold['mae_borne_haute_ic'])}"
+            f"{number(threshold['mae_borne_basse_ic'])} – "
+            f"{number(threshold['mae_borne_haute_ic'])}"
         )
         rows.append(
             [
                 f"`{name}`",
-                _number(scenario["n_observations"]),
+                number(scenario["n_observations"]),
                 f"`{threshold['baseline']}`",
-                _number(threshold["mae_validation"]),
+                number(threshold["mae_validation"]),
                 interval,
-                _number(threshold["mae_borne_basse_ic"]),
-                f"{_number(threshold['gain_relatif_a_demontrer_pct'], decimals=2)} %",
-                _number(threshold["mae_test"]),
+                number(threshold["mae_borne_basse_ic"]),
+                f"{number(threshold['gain_relatif_a_demontrer_pct'], decimals=2)} %",
+                number(threshold["mae_test"]),
             ]
         )
-    return _table(headers, rows)
+    return table(headers, rows)
 
 
 def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
@@ -239,7 +202,7 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
     best = conclusion["meilleure_baseline"]
     best_block = primary["baselines"][best]
     validation_n = best_block["metriques"]["validation"]["n"]
-    confidence = _number((1 - meta["alpha_bootstrap"]) * 100)
+    confidence = number((1 - meta["alpha_bootstrap"]) * 100)
 
     lines: list[str] = [
         "# Phase 5 — Rapport des baselines (ML)",
@@ -253,9 +216,9 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
         "",
         f"- **Source :** `{meta['source']}` (Phase 4), cible `{meta['cible']}` "
         f"en {meta['devise']}.",
-        f"- **Observations :** {_number(quality['n_observations'])}, "
-        f"{_number(quality['quartiers'])} quartiers distincts, "
-        f"{_number(quality['paires_ville_quartier_type'])} triplets (ville, quartier, type).",
+        f"- **Observations :** {number(quality['n_observations'])}, "
+        f"{number(quality['quartiers'])} quartiers distincts, "
+        f"{number(quality['paires_ville_quartier_type'])} triplets (ville, quartier, type).",
         "- **Features d'entrée :** "
         + ", ".join(f"`{column}`" for column in meta["features"])
         + ".",
@@ -267,15 +230,15 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
         "",
     ]
 
-    lines += _table(
+    lines += table(
         ["Marqueur", "Observations"],
         [
-            ["Prix borné (borne inférieure, « à partir de »)", _number(quality["prix_borne"])],
-            ["Républication", _number(quality["republications"])],
-            ["Aberration signalée (`outlier_flags`)", _number(quality["aberrations"])],
-            ["Quartier non reconnu", _number(quality["quartiers_non_reconnus"])],
-            ["Chambres manquantes", _number(quality["chambres_manquantes"])],
-            ["Salles de bain manquantes", _number(quality["salles_de_bain_manquantes"])],
+            ["Prix borné (borne inférieure, « à partir de »)", number(quality["prix_borne"])],
+            ["Républication", number(quality["republications"])],
+            ["Aberration signalée (`outlier_flags`)", number(quality["aberrations"])],
+            ["Quartier non reconnu", number(quality["quartiers_non_reconnus"])],
+            ["Chambres manquantes", number(quality["chambres_manquantes"])],
+            ["Salles de bain manquantes", number(quality["salles_de_bain_manquantes"])],
         ],
     )
     lines += [
@@ -286,19 +249,19 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
         "",
         "- Proportions : "
         + ", ".join(
-            f"{_number(share * 100)} % {SPLIT_LABELS[name]}"
+            f"{number(share * 100)} % {SPLIT_LABELS[name]}"
             for name, share in meta["proportions"].items()
         )
         + f" — graine fixe `{meta['graine']}` (reproductible).",
         "- Séparation **aléatoire**, pas chronologique : "
-        f"`posted_at` renseigné sur {_number(chronology.get('posted_at_renseignes', 0))} "
+        f"`posted_at` renseigné sur {number(chronology.get('posted_at_renseignes', 0))} "
         f"observation(s) et `collected_at` couvrant "
-        f"{_number(chronology['jours_de_collecte_distincts'])} journée(s) de collecte — "
+        f"{number(chronology['jours_de_collecte_distincts'])} journée(s) de collecte — "
         "aucune information temporelle exploitable.",
         "",
     ]
 
-    lines += _table(
+    lines += table(
         [
             "Ensemble",
             "Observations",
@@ -312,26 +275,26 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
         [
             [
                 SPLIT_LABELS[name],
-                _number(block["n_observations"]),
-                f"{_number(block['part'], decimals=1)} %",
-                _number(block["par_ville"].get("Douala", 0)),
-                _number(block["par_ville"].get("Yaoundé", 0)),
-                _number(block["republications"]),
-                _number(block["prix_borne"]),
-                _number(block["aberrations"]),
+                number(block["n_observations"]),
+                f"{number(block['part'], decimals=1)} %",
+                number(block["par_ville"].get("Douala", 0)),
+                number(block["par_ville"].get("Yaoundé", 0)),
+                number(block["republications"]),
+                number(block["prix_borne"]),
+                number(block["aberrations"]),
             ]
             for name, block in primary["taille_par_ensemble"].items()
         ],
     )
 
     lines += ["### Baselines", ""]
-    lines += _table(
+    lines += table(
         ["Baseline", "Définition", "Groupes appris", "Repli"],
         [
             [
                 f"`{name}`",
                 block["definition"],
-                _number(block["parametres"].get("groupes")),
+                number(block["parametres"].get("groupes")),
                 f"`{block['parametres']['repli']}`" if block["parametres"].get("repli") else "—",
             ]
             for name, block in primary["baselines"].items()
@@ -345,13 +308,13 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
         "### Scénarios d'évaluation",
         "",
     ]
-    lines += _table(
+    lines += table(
         ["Scénario", "Description", "Observations"],
         [
             [
                 f"`{name}`",
                 scenario["description"],
-                _number(scenario["n_observations"]),
+                number(scenario["n_observations"]),
             ]
             for name, scenario in scenarios.items()
         ],
@@ -359,12 +322,12 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
 
     lines += ["## Résultats globaux", ""]
     for name, scenario in scenarios.items():
-        lines.append(f"### `{name}` — {_number(scenario['n_observations'])} observations")
+        lines.append(f"### `{name}` — {number(scenario['n_observations'])} observations")
         lines.append("")
-        lines += _global_table(scenario["baselines"])
+        lines += _globaltable(scenario["baselines"])
         lines.append("Niveaux de prédiction utilisés en validation :")
         lines.append("")
-        lines += _level_table(scenario["baselines"], "validation")
+        lines += _leveltable(scenario["baselines"], "validation")
 
     lines += ["### Robustesse : la MAE dépend-elle de l'échantillon ?", ""]
     lines += [
@@ -373,23 +336,23 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
         "contrairement à l'erreur absolue médiane (MedAE) :",
         "",
     ]
-    lines += _robustness_table(scenarios)
+    lines += _robustnesstable(scenarios)
     validation_metrics = best_block["metriques"]["validation"]
     test_metrics = best_block["metriques"]["test"]
-    mae_gap = abs(_gap_percent(validation_metrics["mae"], test_metrics["mae"]) or 0)
-    medae_gap = abs(_gap_percent(validation_metrics["medae"], test_metrics["medae"]) or 0)
+    mae_gap = abs(gap_percent(validation_metrics["mae"], test_metrics["mae"]) or 0)
+    medae_gap = abs(gap_percent(validation_metrics["medae"], test_metrics["medae"]) or 0)
     lines += [
         f"Pour la meilleure baseline (`{best}`), la MAE passe de "
-        f"{_number(validation_metrics['mae'])} FCFA en validation à "
-        f"{_number(test_metrics['mae'])} FCFA en test "
-        f"({_number(mae_gap, decimals=1)} % d'écart), alors que l'erreur médiane varie de "
-        f"{_number(medae_gap, decimals=1)} %.",
+        f"{number(validation_metrics['mae'])} FCFA en validation à "
+        f"{number(test_metrics['mae'])} FCFA en test "
+        f"({number(mae_gap, decimals=1)} % d'écart), alors que l'erreur médiane varie de "
+        f"{number(medae_gap, decimals=1)} %.",
         "Conséquence : le seuil de référence est défini sur la MAE (métrique demandée par",
         "la spec), mais la Phase 6 devra confirmer le gain sur la MedAE et sur plusieurs",
         "graines, faute de quoi le gain ne serait pas démontré.",
         "",
-        f"À noter également : {_number(quality['prix_borne'])} observations sur "
-        f"{_number(quality['n_observations'])} n'ont qu'une borne inférieure de prix",
+        f"À noter également : {number(quality['prix_borne'])} observations sur "
+        f"{number(quality['n_observations'])} n'ont qu'une borne inférieure de prix",
         "(« à partir de ») — la cible est donc approximative pour la majorité du dataset,",
         "ce que les scénarios de sensibilité quantifient.",
         "",
@@ -399,10 +362,10 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
     threshold_n = meta["effectif_minimum_par_segment"]
     lines.append(
         "Aucun segment n'est masqué : chaque MAE est accompagnée de son effectif ; "
-        f"un `*` signale un segment sous le seuil de publication de {_number(threshold_n)} "
+        f"un `*` signale un segment sous le seuil de publication de {number(threshold_n)} "
         "observations (décision Phase 3) dont la MAE n'est pas robuste. "
         "`—` : segment absent de l'ensemble ; quartiers limités aux "
-        f"{_number(config.TOP_NEIGHBORHOODS)} plus volumineux."
+        f"{number(config.TOP_NEIGHBORHOODS)} plus volumineux."
     )
     lines.append("")
     baseline_headers = list(primary["baselines"])
@@ -414,46 +377,46 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
             )
             lines.append(f"### {title} — {SPLIT_LABELS[split_name]}")
             lines.append("")
-            lines += _table(
+            lines += table(
                 ["Segment", "N", *[f"MAE `{name}`" for name in baseline_headers]],
                 rows,
             )
             if has_small:
                 lines.append(
-                    f"`*` effectif < {_number(threshold_n)} : MAE à lire avec prudence."
+                    f"`*` effectif < {number(threshold_n)} : MAE à lire avec prudence."
                 )
                 lines.append("")
 
     lines += ["## Seuil de référence à battre", ""]
-    lines += _threshold_table(scenarios)
+    lines += _thresholdtable(scenarios)
     lines += [
         "Règle de décision (appliquée en Phase 6) : un modèle ML n'est retenu que s'il",
         "ramène la MAE de **validation** sous la borne basse de l'intervalle de confiance",
         f"bootstrap à {confidence} % de la meilleure baseline, soit sous "
-        f"**{_number(threshold['mae_borne_basse_ic'])} FCFA** pour le scénario principal — "
-        f"un gain d'au moins {_number(threshold['gain_absolu_a_demontrer_fcfa'])} FCFA "
-        f"({_number(threshold['gain_relatif_a_demontrer_pct'], decimals=2)} %), **et** que la",
+        f"**{number(threshold['mae_borne_basse_ic'])} FCFA** pour le scénario principal — "
+        f"un gain d'au moins {number(threshold['gain_absolu_a_demontrer_fcfa'])} FCFA "
+        f"({number(threshold['gain_relatif_a_demontrer_pct'], decimals=2)} %), **et** que la",
         "réduction se confirme sur le test. Un gain inférieur à cet intervalle n'est pas",
-        f"distinguable du bruit d'échantillonnage (N validation = {_number(validation_n)}).",
+        f"distinguable du bruit d'échantillonnage (N validation = {number(validation_n)}).",
         "",
         "## Conclusion",
         "",
         f"- Meilleure baseline : `{best}` — MAE validation "
-        f"{_number(best_block['metriques']['validation']['mae'])} FCFA, MAE test "
-        f"{_number(best_block['metriques']['test']['mae'])} FCFA.",
-        f"- Seuil à battre : **{_number(threshold['mae_borne_basse_ic'])} FCFA** en "
+        f"{number(best_block['metriques']['validation']['mae'])} FCFA, MAE test "
+        f"{number(best_block['metriques']['test']['mae'])} FCFA.",
+        f"- Seuil à battre : **{number(threshold['mae_borne_basse_ic'])} FCFA** en "
         "validation (gain minimal exigé : "
-        f"{_number(threshold['gain_relatif_a_demontrer_pct'], decimals=2)} %).",
+        f"{number(threshold['gain_relatif_a_demontrer_pct'], decimals=2)} %).",
         "- Aucun modèle ML n'est entraîné à cette phase (hors périmètre) : la Phase 6 doit",
         "  démontrer ce gain, sinon la baseline reste la référence du produit.",
         "",
         "Segments les plus difficiles pour la meilleure baseline (MAE décroissante) :",
         "",
     ]
-    lines += _table(
+    lines += table(
         ["Famille", "Segment", "N", "MAE"],
         [
-            [row["famille"], row["segment"], _number(row["n"]), _number(row["mae"])]
+            [row["famille"], row["segment"], number(row["n"]), number(row["mae"])]
             for row in conclusion["segments_les_plus_difficiles"]
         ],
     )
@@ -461,16 +424,16 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
     lines += [
         "## Limites connues",
         "",
-        f"- **Prix censurés** : {_number(quality['prix_borne'])} observations sur "
-        f"{_number(quality['n_observations'])} ne donnent qu'une borne inférieure "
+        f"- **Prix censurés** : {number(quality['prix_borne'])} observations sur "
+        f"{number(quality['n_observations'])} ne donnent qu'une borne inférieure "
         "(« à partir de ») ; la cible est alors approximative.",
-        f"- **Républications** : {_number(quality['republications'])} observations signalées, "
+        f"- **Républications** : {number(quality['republications'])} observations signalées, "
         "réparties aléatoirement entre les ensembles ; des annonces très proches peuvent",
         "apparaître en entraînement et en test, ce qui rend l'évaluation légèrement optimiste.",
-        f"- **Quartiers non reconnus** : {_number(quality['quartiers_non_reconnus'])} observations "
+        f"- **Quartiers non reconnus** : {number(quality['quartiers_non_reconnus'])} observations "
         "portent un libellé absent du référentiel ; elles restent évaluées.",
         f"- **Petits segments** : les quartiers sous "
-        f"{_number(meta['effectif_minimum_par_segment'])} observations ne sont pas publiés "
+        f"{number(meta['effectif_minimum_par_segment'])} observations ne sont pas publiés "
         "(aucune fusion silencieuse).",
         "- **Features absentes** : `area_m2`, `furnished`, `parking`, `gated` sont vides",
         "  dans le Silver : les baselines n'exploitent que ville, quartier, type, chambres",
@@ -488,7 +451,7 @@ def render_report(metrics: dict[str, Any], *, generated_at: str) -> str:
         "",
         f"Versions : Python {meta['versions']['python']}, pandas {meta['versions']['pandas']}, "
         f"numpy {meta['versions']['numpy']}, scikit-learn {meta['versions']['scikit_learn']} ; "
-        f"graine `{meta['graine']}`, bootstrap {_number(meta['iterations_bootstrap'])} itérations.",
+        f"graine `{meta['graine']}`, bootstrap {number(meta['iterations_bootstrap'])} itérations.",
         "",
     ]
     return "\n".join(lines)

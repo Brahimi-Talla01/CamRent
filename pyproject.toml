@@ -25,6 +25,8 @@ transform = [
 ]
 ml = [
     "scikit-learn",
+    # Phase 6 : modèle d'ensemble (comparé aux familles scikit-learn)
+    "lightgbm",
     "mlflow",
 ]
 api = [

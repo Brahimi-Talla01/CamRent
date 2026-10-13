@@ -51,7 +51,82 @@ def build_parser() -> argparse.ArgumentParser:
         help="chemin du rapport markdown",
     )
     run_cmd.add_argument("--verbose", action="store_true")
+
+    models_cmd = sub.add_parser(
+        "models",
+        help="comparer les modèles, retenir le meilleur, valider la fourchette "
+        "et sauvegarder (Phase 6)",
+    )
+    models_cmd.add_argument("--database-url", type=str, default=None)
+    models_cmd.add_argument("--report", type=Path, default=None)
+    models_cmd.add_argument("--selection", type=Path, default=None)
+    models_cmd.add_argument("--models-dir", type=Path, default=None)
+    models_cmd.add_argument(
+        "--no-lightgbm", action="store_true", help="ignorer LightGBM (dépendance optionnelle)"
+    )
+    models_cmd.add_argument(
+        "--no-persist", action="store_true", help="ne pas écrire le modèle retenu"
+    )
+    models_cmd.add_argument("--verbose", action="store_true")
     return parser
+
+
+def run_models_command(
+    database_url: str | None,
+    report_path: Path | None,
+    selection_path: Path | None,
+    models_dir: Path | None,
+    *,
+    include_lightgbm: bool,
+    persist: bool,
+) -> int:
+    from . import run_models  # import local (scikit-learn chargé à la demande)
+
+    try:
+        results = run_models.run(
+            database_url,
+            report_path=report_path,
+            metrics_path=selection_path,
+            models_dir=models_dir,
+            include_lightgbm=include_lightgbm,
+            persist=persist,
+        )
+    except (RuntimeError, ValueError, OSError, KeyError) as exc:
+        print(f"[ERREUR] modèles impossibles : {exc}", file=sys.stderr)
+        return 1
+
+    selection = results["selection"]
+    threshold = results["seuil_reference"]
+    intervals = results["intervalles"]
+    retained_interval = intervals["methodes"][intervals["methode_retenue"]]["test"]
+    print(f"[OK] {len(results['candidats'])} candidats comparés")
+    for row in selection["classement"][:3]:
+        print(
+            f"     {row['slug']:26s} MAE validation {row['mae_validation']:>10,} "
+            f"MedAE {row['medae_validation']:>9,} MAE test {row['mae_test']:>10,}"
+        )
+    verdict = "bat le seuil" if selection["bat_le_seuil_validation"] else "NE bat PAS le seuil"
+    print(
+        f"     retenu : {selection['slug']} — {verdict} "
+        f"(seuil {threshold['mae_borne_basse_ic']:,} FCFA, gain "
+        f"{selection['gain_vs_baseline_pct']} % vs `{threshold['baseline']}`)"
+    )
+    print(
+        f"     fourchette : {intervals['methode_retenue']} — couverture test "
+        f"{retained_interval['couverture_pct']} % (visé {intervals['niveau_vise_pct']} %), "
+        f"largeur moyenne {retained_interval['largeur_moyenne']:,} FCFA"
+    )
+    top = results["explicabilite"]["importance_globale"][:3]
+    print(
+        "     facteurs principaux (erreur médiane supplémentaire) : "
+        + ", ".join(
+            f"{row['feature']} (+{row['erreur_mediane_supplementaire_moyenne']:,})"
+            for row in top
+        )
+    )
+    for name, path in results.get("artefacts", {}).items():
+        print(f"     {name} : {path}")
+    return 0
 
 
 def run(
@@ -102,6 +177,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.command == "baselines":
         return run(args.database_url, args.artifacts_dir, args.metrics, args.report)
+    if args.command == "models":
+        return run_models_command(
+            args.database_url,
+            args.report,
+            args.selection,
+            args.models_dir,
+            include_lightgbm=not args.no_lightgbm,
+            persist=not args.no_persist,
+        )
     build_parser().print_help()
     return 1
 

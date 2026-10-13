@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 4 — Data marts** en cours (branche `phase/4-data-marts`) ; Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
+- **Phase 5 — Baseline ML** à démarrer ; Phase 4 mergée (PR #23, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
 
 ## Current Goal
 
-- Terminer et vérifier la Phase 4 : Silver chargé dans PostgreSQL (2 992 lignes) + marts dbt construits (74/74 tests dbt OK) ; reste PR → revue → merge.
+- Démarrer la Phase 5 — Baseline ML (spec `context/feature-specs/05-baseline-ml.md`) sur `mart_ml_dataset` : la Phase 4 est livrée et fusionnée.
 
 ## Completed
 
@@ -54,7 +54,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - correction de bugs de génération (revue senior) : filtre `outlier_flags` (chaîne vide ≠ `NaN`, retenait à tort les 2 992 lignes), désalignement des médianes du top-5 quartiers, colonne « N chambres » affichant les effectifs, part « appartement » figée à 100 %, en-tête listant les colonnes au lieu des villes, et suppression de toutes les valeurs en dur (dates, pourcentages, moyennes).
   - tests : `36 passed, 1 skipped` (toute la suite unitaire, avec `requests`, `SQLAlchemy`, `psycopg` installés) ; `ruff` sans erreur sur `eda/`.
 
-- **Phase 4 — Data marts** (branche `phase/4-data-marts`, en revue) :
+- **Phase 4 — Data marts** (mergée dans `develop` via la PR #23 — squash `75775b9` ; issue #5 close) :
   - `pipelines/db.py` + CLI `python -m pipelines load` : charge le Silver Parquet dans
     `landing.silver_listings` (idempotent : vidage `TRUNCATE` puis réinsertion par lot,
     la table n'est jamais droppée ; DATABASE_URL requis) — 2 992 lignes.
@@ -95,13 +95,12 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## In Progress
 
-- Phase 4 — Data marts : code + docs terminés sur `phase/4-data-marts`, PR #23
-  ouverte vers `develop`, en attente de CI / revue / merge.
+- Rien en cours : la Phase 4 est fusionnée dans `develop` et l'issue #5 close.
 
 ## Next Up
 
-- Fusion de la Phase 4 (PR → revue → merge squash dans `develop`), puis Phase 5 —
-  Baseline ML (les marts et `mart_ml_dataset` sont prêts).
+- Phase 5 — Baseline ML (issue #6) sur `mart_ml_dataset` (déjà disponible : 2 992
+  lignes, drapeaux exposés, cible `target_rent_price`).
 
 ## Open Questions
 
@@ -137,5 +136,6 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - Silver (Phase 2) : 3 078 bruts → 2 992 Silver / 78 quarantine ; `price_is_bound` 2 564 ; aberrations 17 ; quartiers non reconnus 582.
 - EDA (Phase 3) : 2 992 lignes → distribution asymétrique, 2 564 prix bornés, 1 970 republications, 17 aberrations, 582 quartiers non reconnus, pas de surface/date/meublé.
 - Référentiel (issue #20) : 26 quartiers ajoutés et alias tracés ; non reconnus 582 → 101 (19,5 % → 3,4 %) ; quartiers canoniques utilisés 34 → 61 ; republications 1 970 → 2 001 ; 0 conflit ville/quartier.
+- Phase 4 (suite) : PR #23 mergée en squash (`75775b9`, issue #5 close) ; chargement rejouable (vidage `TRUNCATE` + réinsertion, table jamais droppée) et CI qui installe désormais `sqlalchemy` afin d'exécuter réellement les tests du chargeur.
 - Phase 4 : PostgreSQL docker-compose sur **5433** (5432 occupé par le PostgreSQL système local, mot de passe `camrent` inconnu) ; dbt installé dans `.venv` (dbt-core 1.12.5, dbt-postgres 1.11.0, compatible Python 3.14) ; connexion dbt via variables `DBT_*` (profiles.yml) ; `pipelines load` via `DATABASE_URL`.
 - Phase 4 : `dbt build` 74/74 (12 modèles + 62 tests) ; volumes vérifiés en base : 2 992 lignes traversant toutes les couches ; mart_city_prices : Douala N=2 811 méd. 100 000, Yaoundé N=181 méd. 150 000 (conforme EDA) ; 253 groupes quartier×type×chambres ; médiane null strictement sous N=30 ; 101 non reconnus / 2 001 républications / 2 564 prix bornés / 17 aberrations conservés avec drapeaux.

@@ -56,7 +56,8 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 - **Phase 4 — Data marts** (branche `phase/4-data-marts`, en revue) :
   - `pipelines/db.py` + CLI `python -m pipelines load` : charge le Silver Parquet dans
-    `landing.silver_listings` (idempotent, DATABASE_URL requis) — 2 992 lignes.
+    `landing.silver_listings` (idempotent : vidage `TRUNCATE` puis réinsertion par lot,
+    la table n'est jamais droppée ; DATABASE_URL requis) — 2 992 lignes.
   - projet dbt (`dbt/`) : `stg_listings` → `int_clean_listings` → 4 dims (`dim_city`,
     `dim_neighborhood`, `dim_property_type`, `dim_date` — dates observées, pas de
     calendrier artificiel), 2 faits (`fct_rent_observations`, `fct_listings`),
@@ -75,9 +76,14 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - Data Catalog : `docs/phase-4/data-catalog.md` (grain, source, fréquence, owner,
     sensibilité, qualité + lineage) ; `dbt/README.md` ; `docs/phase-4/README.md`
     (résultats réels du rejeu du 2026-10-12).
-  - vérifications : ruff OK ; pytest **43 passed, 1 skipped** (4 nouveaux tests du
-    chargeur dans `tests/unit/test_pipelines_db.py`) ; cohérence EDA ↔ marts contrôlée
-    en SQL (médianes 100 000/150 000, 253 groupes, seuil 30 respecté, 101 non reconnus).
+  - vérifications : ruff OK ; pytest **44 passed, 1 skipped** (5 tests du chargeur dans
+    `tests/unit/test_pipelines_db.py`) ; cohérence EDA ↔ marts contrôlée en SQL
+    (médianes 100 000/150 000, 253 groupes, seuil 30 respecté, 101 non reconnus).
+  - correction de revue : le chargement utilisait `if_exists="replace"` (DROP +
+    recréation), ce qui cassait les vues dbt dépendantes et rendait `dbt build`
+    inutilisable juste après un `load` — remplacé par vidage (`TRUNCATE`) puis
+    insertion ; validé par un rejeu réel (2 992 lignes après deux `load`, puis
+    `dbt build` 74/74).
 
 - **Issue #20 — Enrichissement du référentiel géographique** (`pipelines/geo.py`) :
   - 26 quartiers réels ajoutés au seed (15 à Douala, 11 à Yaoundé), vérifiés sur les palettes Wikipédia « Quartiers de Douala » et « Quartiers de Yaoundé ».
@@ -89,8 +95,8 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## In Progress
 
-- Phase 4 — Data marts : code + docs terminés sur `phase/4-data-marts`, en attente
-  de PR / CI / revue / merge.
+- Phase 4 — Data marts : code + docs terminés sur `phase/4-data-marts`, PR #23
+  ouverte vers `develop`, en attente de CI / revue / merge.
 
 ## Next Up
 

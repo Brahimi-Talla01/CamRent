@@ -8,8 +8,10 @@ tables analytiques (Gold) à partir du Silver, prêtes pour l'analyse, l'API
 
 1. **Chargement du Silver dans PostgreSQL** : `pipelines/db.py` +
    `python -m pipelines load` → table d'atterrissage
-   `landing.silver_listings` (idempotent, `replace` ; la source de vérité du
-   Silver reste `data/processed/silver_listings.parquet`, rejouable).
+   `landing.silver_listings` (idempotent : la table est **vidée** (`TRUNCATE`)
+   puis remplie, jamais droppée — les vues dbt qui en dépendent survivent au
+   rejeu ; la source de vérité du Silver reste
+   `data/processed/silver_listings.parquet`, rejouable).
 2. **Projet dbt** (`dbt/`) : transformations SQL versionnées ;
    chaîne `stg_listings` → `int_clean_listings` → faits/dims → marts.
 3. **Tables** :
@@ -54,6 +56,11 @@ Base : PostgreSQL 16 (docker-compose, PostgreSQL système déjà occupant 5432 �
 À noter : deux lignes aux prix extrêmes (`rent_price` = 1 FCFA → Douala ; 50 FCFA →
 Yaoundé) restent dans les faits avec `price_outlier` — elles sont signalées,
 conformément aux invariants (pas de suppression silencieuse).
+
+Rejeu du chargement vérifié : `python -m pipelines load` exécuté deux fois → la
+table reste à **2 992 lignes** (vidage puis réinsertion, pas de doublon), et
+`dbt build` rejoué juste après le chargement passe **74/74** (les vues `staging`
+ne sont plus cassées par un `DROP` de la table d'atterrissage).
 
 ## Invariants appliqués
 

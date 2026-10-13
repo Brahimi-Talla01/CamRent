@@ -4,10 +4,13 @@ Lit `data/processed/silver_listings.parquet` (sortie de la Phase 2) et remplit
 la table d'atterrissage `landing.silver_listings` dans la base d'exécution
 configurée via `DATABASE_URL`.
 
-Idempotent : la table d'atterrissage est recréée à chaque exécution. Elle est
-une copie dérivée du Silver Parquet (qui reste la source de vérité du Silver) :
-aucune donnée brute ou traitée n'est écrasée. Les modèles dbt construisent
-ensuite les faits/dimensions/marts (staging → intermediate → marts).
+Idempotent : la table d'atterrissage est **vidée puis remplie** à chaque exécution
+(`TRUNCATE` + insertion, par lot). Elle n'est **jamais droppée** : les vues dbt
+(staging/intermediate) qui en dépendent survivent au rejeu du chargement, et un
+`dbt build` peut être rejoué immédiatement après. La table est une copie dérivée
+du Silver Parquet (qui reste la source de vérité du Silver) : aucune donnée brute
+ou traitée n'est écrasée. Les modèles dbt construisent ensuite les
+faits/dimensions/marts (staging → intermediate → marts).
 """
 
 from __future__ import annotations
@@ -39,22 +42,23 @@ def _connection_url(database_url: str | None = None) -> str:
 def load_silver_to_postgres(
     silver_path: Path | None = None,
     database_url: str | None = None,
-    if_exists: str = "replace",
 ) -> dict[str, Any]:
     """Charge le Silver Parquet dans `landing.silver_listings` (idempotent).
+
+    La table est vidée (`TRUNCATE`) puis remplie ; elle n'est jamais droppée
+    pour ne pas casser les vues dbt qui en dépendent.
 
     Args:
         silver_path: chemin du Parquet Silver (défaut : config.PROCESSED_ROOT).
         database_url: URL PostgreSQL (défaut : variable DATABASE_URL).
-        if_exists: comportement pandas to_sql si table existante
-            (`replace` : recréation complète ; `append` : ajout).
 
     Returns:
         Dict avec le chemin du Parquet lu, la table cible et le nombre de
         lignes chargées.
     """
-    from sqlalchemy import create_engine  # import local (évite la dépendance stricte)
-
+    # Validation des entrées AVANT tout import lourd (sqlalchemy) : les
+    # messages d'erreur restent clairs même sans l'extra dbt installé.
+    _connection_url(database_url)
     path = silver_path or config.PROCESSED_ROOT / config.SILVER_FILENAME
     if not path.exists():
         raise FileNotFoundError(
@@ -62,7 +66,21 @@ def load_silver_to_postgres(
             f"`python -m pipelines silver`."
         )
 
-    df = pd.read_parquet(path, engine="fastparquet")
+    try:
+        df = pd.read_parquet(path)
+    except ImportError as exc:  # pyarrow / fastparquet absent
+        raise RuntimeError(
+            f"Lecture Parquet impossible (moteur manquant) : {exc} — "
+            "installer pyarrow ou fastparquet."
+        ) from exc
+    try:
+        from sqlalchemy import create_engine, inspect  # local (extra dbt/transform)
+    except ImportError as exc:
+        raise RuntimeError(
+            "SQLAlchemy est requis pour le chargement en base. Installer : "
+            "pip install 'camrent[transform]' (ou SQLAlchemy + psycopg)."
+        ) from exc
+
     url = _connection_url(database_url)
     engine = create_engine(url, future=True)
 
@@ -71,11 +89,17 @@ def load_silver_to_postgres(
     try:
         with engine.begin() as conn:
             conn.exec_driver_sql(f'CREATE SCHEMA IF NOT EXISTS "{schema}"')
+        # La table n'est jamais droppée : les vues dbt qui en dépendent
+        # survivraient mal à un DROP. On vide puis réinsère.
+        exists = inspect(engine).has_table(table, schema=schema)
+        if exists:
+            with engine.begin() as conn:
+                conn.exec_driver_sql(f'TRUNCATE TABLE "{schema}"."{table}"')
         df.to_sql(
             table,
             engine,
             schema=schema,
-            if_exists=if_exists,
+            if_exists="append" if exists else "fail",
             index=False,
             chunksize=1000,
         )

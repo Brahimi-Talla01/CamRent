@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 5 — Baseline ML** à démarrer ; Phase 4 mergée (PR #23, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
+- **Phase 5 — Baseline ML** en cours (branche `phase/5-baseline-ml`) ; Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
 
 ## Current Goal
 
-- Démarrer la Phase 5 — Baseline ML (spec `context/feature-specs/05-baseline-ml.md`) sur `mart_ml_dataset` : la Phase 4 est livrée et fusionnée.
+- Terminer et vérifier la Phase 5 : baselines mesurées sur `mart_ml_dataset` (MAE/RMSE/R² par segment, seuil de référence fixé) ; reste PR → revue → merge.
 
 ## Completed
 
@@ -92,6 +92,27 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     insertion ; validé par un rejeu réel (2 992 lignes après deux `load`, puis
     `dbt build` 95/95).
 
+- **Phase 5 — Baseline ML** (branche `phase/5-baseline-ml`, en revue) :
+  - `ml/src/` : `config`, `data` (mart `analytics_marts.mart_ml_dataset`, scénarios), `split`
+    (70/15/15, graine `20261009`), `baselines` (`baseline_global`, `baseline_city`,
+    `baseline_neighborhood` + chaîne de repli explicite), `evaluation` (MAE/RMSE/R²/MedAE,
+    segments, IC bootstrap), `report` (rendu dérivé), CLI `python -m ml.src baselines`.
+  - résultats (2 992 obs → 2 094/449/449) : MAE validation **190 141** (globale) /
+    **147 296** (ville) / **97 079** (quartier+type) ; test 275 818 / 234 258 / 185 261 ;
+    R² validation −0,001 / −0,169 / **0,426**.
+  - **seuil à battre** : MAE validation < **79 773 FCFA** (borne basse IC 95 % bootstrap,
+    2 000 tirages) = **17,83 %** de mieux que la meilleure baseline ; scénarios de
+    sensibilité : hors républications (N=991) → 115 721 ; prix exacts sans aberration
+    (N=422) → 120 069.
+  - constat méthodologique : la MAE est instable (97 079 validation → 185 261 test,
+    +90,8 %) alors que la MedAE ne varie que de ~12 % → le gain devra être confirmé sur
+    la MedAE et plusieurs graines en Phase 6.
+  - aucune exclusion silencieuse : toutes les observations évaluées dans le scénario
+    principal ; segments sous 30 observations **signalés** (`*`), jamais masqués ;
+    quartiles de prix calculés sur l'entraînement seulement.
+  - tests : `tests/unit/test_ml_{data,split,baselines,evaluation}.py` (**37 tests**) ;
+    `ruff` sans erreur ; métriques JSON déterministes (md5 identique au rejeu).
+
 - **Issue #20 — Enrichissement du référentiel géographique** (`pipelines/geo.py`) :
   - 26 quartiers réels ajoutés au seed (15 à Douala, 11 à Yaoundé), vérifiés sur les palettes Wikipédia « Quartiers de Douala » et « Quartiers de Yaoundé ».
   - alias tracés : sous-quartiers d'Akwa (`Akwa I`/`Akwa II` → `Akwa`), variante `Cite Ubo Palmiers` → `Cité des Palmiers` (confirmée par les annonces Koutchoumi), `Mbangue` → `Bangue`, et descriptions d'annonces nommant explicitement un quartier canonique.
@@ -102,23 +123,25 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## In Progress
 
-- Rien en cours : la Phase 4 est fusionnée dans `develop` et l'issue #5 close.
+- Phase 5 — Baseline ML : code + docs + rapport terminés sur `phase/5-baseline-ml`,
+  en attente de PR / CI / revue / merge.
 
 ## Next Up
 
-- Phase 5 — Baseline ML (issue #6) sur `mart_ml_dataset` (déjà disponible : 2 992
-  lignes, drapeaux exposés, cible `target_rent_price`).
+- Phase 6 — Modèles ML (issue #7) : démontrer un gain réel sous le seuil fixé
+  (MAE validation < 79 773 FCFA, confirmé sur la MedAE et plusieurs graines).
 
 ## Open Questions
 
-- **Prix censurés** : conservés avec `price_is_bound` (borne inférieure) ; stratégie de pondération/exclusion à figer en Phases 5-6.
+- **Prix censurés** : conservés avec `price_is_bound` (borne inférieure, 2 564 lignes sur 2 992) ; le seuil de la Phase 5 est mesuré sur toutes les observations, un scénario de sensibilité quantifie l'effet — stratégie de pondération/exclusion à figer en Phase 6.
+- **Gain ML à démontrer** : règle fixée en Phase 5 — MAE validation sous la borne basse de l'IC 95 % bootstrap de la meilleure baseline (79 773 FCFA, soit −17,83 %), à confirmer sur la MedAE (+90,8 % d'écart MAE validation → test, ~12 % pour la MedAE).
 - **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ?
 - **Référentiel géographique** : seed enrichi (issue #20) ; 101 lignes (78 libellés distincts) restent non reconnues — descriptions d'annonces, libellés ambigus (`Elig`) ou non vérifiables (`DENVER`, `COAF`) conservés et signalés, sans mapping inventé.
 - **Republications** : 2 001 lignes marquées `is_republication` ; décider si conservées/pondérées pour l'entraînement (le drapeau est exposé dans `mart_ml_dataset` pour une décision explicite en Phase 5-6).
 - **Endpoints MINFI / INS** : documents stockés bruts, endpoints et formats à valider.
 - **Dataset tiers `deegeorgie`** : usage strictement local (sans licence), non redistribué.
-- Méthode d'intervalle de prédiction (quantiles, bootstrap, quantile regression) — Phases 5-6.
-- Séparation train/validation/test : aléatoire ou chronologique ?
+- Méthode d'intervalle de prédiction du produit (quantiles, bootstrap, quantile regression) — Phase 6 : le bootstrap est déjà utilisé pour l'IC de la MAE (Phase 5).
+- Séparation train/validation/test : **aléatoire** retenue (70/15/15, graine fixe) — `posted_at` vide et `collected_at` sur une seule journée, donc séparation chronologique impossible (Phase 5). À revoir si une collecte étalée dans le temps devient disponible.
 - Périmètre géographique exact du MVP (liste des quartiers).
 
 ## Architecture Decisions
@@ -143,6 +166,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - Silver (Phase 2) : 3 078 bruts → 2 992 Silver / 78 quarantine ; `price_is_bound` 2 564 ; aberrations 17 ; quartiers non reconnus 582.
 - EDA (Phase 3) : 2 992 lignes → distribution asymétrique, 2 564 prix bornés, 1 970 republications, 17 aberrations, 582 quartiers non reconnus, pas de surface/date/meublé.
 - Référentiel (issue #20) : 26 quartiers ajoutés et alias tracés ; non reconnus 582 → 101 (19,5 % → 3,4 %) ; quartiers canoniques utilisés 34 → 61 ; republications 1 970 → 2 001 ; 0 conflit ville/quartier.
+- Phase 5 : baselines mesurées — MAE validation 97 079 FCFA (quartier+type) contre 190 141 (moyenne globale) ; seuil à battre 79 773 FCFA (−17,83 %) ; MAE instable (test 185 261) alors que la MedAE reste à 40 000/35 000 → gain ML à confirmer sur plusieurs graines.
 - Phase 4 (conformité) : vérification complète de la phase (chaîne rejouée, base interrogée, manifeste dbt, catalogue) — 0 orphelin sur les 4 clés, 0 violation du seuil N<30, drapeaux alignés sur le Silver (2 001 / 2 564 / 17 / 101) ; écarts corrigés : tests de bornes et relations manquants, invariant N<30 gardé par un test, champ Fréquence du catalogue, nommage des schémas, commentaire CI obsolète. Piste non traitée : `bathrooms` atteint 80 dans le Silver sans être signalé (contrôle Phase 2).
 - Phase 4 (suite) : PR #23 mergée en squash (`75775b9`, issue #5 close) ; chargement rejouable (vidage `TRUNCATE` + réinsertion, table jamais droppée) et CI qui installe désormais `sqlalchemy` afin d'exécuter réellement les tests du chargeur.
 - Phase 4 : PostgreSQL docker-compose sur **5433** (5432 occupé par le PostgreSQL système local, mot de passe `camrent` inconnu) ; dbt installé dans `.venv` (dbt-core 1.12.5, dbt-postgres 1.11.0, compatible Python 3.14) ; connexion dbt via variables `DBT_*` (profiles.yml) ; `pipelines load` via `DATABASE_URL`.

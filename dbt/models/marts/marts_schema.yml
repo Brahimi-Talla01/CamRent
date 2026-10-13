@@ -60,12 +60,24 @@ models:
       - name: year
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 2000
+                max_value: 2100
       - name: month
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 1
+                max_value: 12
       - name: day
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 1
+                max_value: 31
 
   - name: fct_rent_observations
     description: >
@@ -83,9 +95,46 @@ models:
               arguments:
                 to: ref('dim_city')
                 field: city_name
+      # Clé composite (ville | quartier) : la paire est contrôlée par le test
+      # singulier `assert_neighborhood_key_exists_in_dim_neighborhood`.
+      - name: neighborhood_key
+        tests:
+          - not_null
+      - name: property_type_key
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_property_type')
+                field: property_type_name
+      - name: date_day
+        tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_day
       - name: rent_price
         tests:
           - not_null
+          # Bornes inclusives : le prix doit être strictement positif. Les
+          # valeurs extrêmes mais conservées (1 FCFA, 40 000 000 FCFA) restent
+          # valides au sens de la borne — elles sont signalées par
+          # `outlier_flags`, jamais supprimées.
+          - within_range:
+              arguments:
+                min_value: 1
+      - name: bedrooms
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 10
+      - name: bathrooms
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
 
   - name: fct_listings
     description: >
@@ -119,9 +168,22 @@ models:
       - name: n_observations
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 1
       - name: mean_rent_price
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      # La médiane peut être nulle sous le seuil de publication : la borne
+      # inférieure suffit (le contrôle du seuil est le test singulier).
+      - name: median_rent_price
+        tests:
+          - within_range:
+              arguments:
+                min_value: 0
 
   - name: mart_city_prices
     description: >
@@ -137,9 +199,15 @@ models:
       - name: n_observations
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 1
       - name: median_rent_price
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 0
 
   - name: mart_property_prices
     description: >
@@ -154,9 +222,15 @@ models:
       - name: n_observations
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 1
       - name: median_rent_price
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 0
 
   - name: mart_ml_dataset
     description: >
@@ -183,3 +257,6 @@ models:
       - name: target_rent_price
         tests:
           - not_null
+          - within_range:
+              arguments:
+                min_value: 1

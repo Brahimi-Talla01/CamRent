@@ -6,6 +6,11 @@ en faits, dimensions et marts prêts pour l'API, l'analyse et le ML.
 Flux : `landing.silver_listings` → `staging.stg_listings` →
 `intermediate.int_clean_listings` → marts (`schema marts/`).
 
+En base, les schémas sont préfixés par le schéma de profil (`DBT_SCHEMA`,
+défaut `analytics`) : `analytics_staging`, `analytics_intermediate`,
+`analytics_marts`. Seule la table d'atterrissage (`landing.silver_listings`)
+est créée hors dbt, par `python -m pipelines load`.
+
 ## Prérequis
 
 - `pip install dbt-postgres` (dbt-core ≥ 1.12 + adaptateur postgres).
@@ -41,6 +46,10 @@ dbt docs generate # lineage (docs/generated)
 dbt/
 ├── dbt_project.yml       # nommage stg_/int_/dim_/fct_/mart_, par couche
 ├── profiles.yml           # connexion par env vars (dev/prod)
+├── macros/
+│   └── tests/             # within_range (test générique de bornes)
+├── tests/                 # tests singuliers (invariants trop complexes pour
+│                          #   un test de colonne)
 └── models/
     ├── staging/           # stg_listings + sources.yml (+ tests)
     ├── intermediate/      # int_clean_listings (+ tests)
@@ -81,4 +90,16 @@ dbt/
 
 - `dbt test` : not_null, unique, relationships, accepted_values sur
   stg/intermediate/marts (voir `models/marts/marts_schema.yml`).
-- Les relations vérifient l'intégrité faits → dimensions.
+- Bornes inclusives : test générique `within_range` (macro
+  `macros/tests/within_range.sql`), déclaré par colonne avec `min_value` et/ou
+  `max_value` — prix ≥ 1, chambres 0-10, N ≥ 1, année/mois/jour, cible ≥ 1.
+  Les extrêmes conservés (1 FCFA, 40 000 000 FCFA) restent dans les bornes :
+  ils sont signalés par `outlier_flags`, jamais supprimés.
+- Relations : `relationships` vers `dim_city`, `dim_property_type` et
+  `dim_date` ; la paire (ville, quartier) étant composite, elle est contrôlée
+  par le test singulier `assert_neighborhood_key_exists_in_dim_neighborhood`.
+- Invariant de publication :
+  `assert_median_published_only_at_or_above_threshold` échoue si une médiane de
+  quartier est publiée sous `min_publish_n` ou absente au-dessus.
+- Les tests singuliers vivent dans `dbt/tests/` et échouent en remontant des
+  lignes.

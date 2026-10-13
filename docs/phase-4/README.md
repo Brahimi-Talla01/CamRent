@@ -24,6 +24,11 @@ tables analytiques (Gold) à partir du Silver, prêtes pour l'analyse, l'API
    accepted_values — `dbt/models/marts/marts_schema.yml`.
 5. **Data Catalog** : `data-catalog.md` (description, grain, source,
    fréquence, owner, sensibilité, qualité pour chaque dataset).
+6. **Tests dbt de conformité** : bornes inclusives (`within_range`, macro
+   `dbt/macros/tests/within_range.sql`) sur les prix, chambres et volumes ;
+   relations faits → dims complètes (ville, type, date, plus la paire
+   ville/quartier par test singulier) ; invariant de publication des médianes
+   gardé par `dbt/tests/assert_median_published_only_at_or_above_threshold.sql`.
 
 ## Exécution de bout en bout
 
@@ -40,14 +45,18 @@ cd dbt && dbt build && dbt test
 
 Voir `dbt/README.md` pour les variables d'environnement attendues.
 
-## Résultats de la construction (rejeu du 2026-10-12)
+## Résultats de la construction (rejeu du 2026-10-13)
 
 Base : PostgreSQL 16 (docker-compose, PostgreSQL système déjà occupant 5432 → port **5433**), dbt-core 1.12.5 + dbt-postgres 1.11.0.
+
+Schémas réels en base : `analytics_staging`, `analytics_intermediate`,
+`analytics_marts` (dbt préfixe le schéma de profil `analytics`) ; la table
+d'atterrissage est dans `landing`, créée hors dbt.
 
 | Étape | Résultat |
 |---|---|
 | `python -m pipelines load` | **2 992 lignes** → `landing.silver_listings` |
-| `dbt build` | **74/74 PASS** : 12 modèles (2 vues + 10 tables) + **62 tests dbt** |
+| `dbt build` | **95/95 PASS** : 12 modèles (2 vues + 10 tables) + **83 tests dbt** (not_null, unique, relationships, accepted_values, bornes `within_range`, 2 tests singuliers) |
 | Grain fat/dim/mart | cohérent : 2 992 lignes de landing à `mart_ml_dataset` |
 | `mart_city_prices` | Douala N=2 811 méd. 100 000 · Yaoundé N=181 méd. 150 000 (conforme EDA Phase 3) |
 | `mart_neighborhood_prices` | 253 groupes (ville, quartier, type, chambres) ; médiane **null sous N<30** (0 violation : 0 publiée sous 30, 0 absente à ≥ 30) |
@@ -59,7 +68,7 @@ conformément aux invariants (pas de suppression silencieuse).
 
 Rejeu du chargement vérifié : `python -m pipelines load` exécuté deux fois → la
 table reste à **2 992 lignes** (vidage puis réinsertion, pas de doublon), et
-`dbt build` rejoué juste après le chargement passe **74/74** (les vues `staging`
+`dbt build` rejoué juste après le chargement passe **95/95** (les vues `staging`
 ne sont plus cassées par un `DROP` de la table d'atterrissage).
 
 ## Invariants appliqués

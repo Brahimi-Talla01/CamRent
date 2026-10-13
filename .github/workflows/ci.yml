@@ -40,6 +40,10 @@ jobs:
         run: pytest -q
 
       # Étapes à activer aux phases suivantes (Plan Technique §53) :
-      # - data tests (dbt tests + Pandera)  → Phase 4
+      # - data tests dbt (`dbt build`)      → nécessitent PostgreSQL, exécutés
+      #   hors CI au MVP (Phase 10 — orchestration) ; la CI ne valide que le
+      #   lint et les tests unitaires.
+      # - contrôles Pandera sur le Silver    → option du Plan §26, non retenue
+      #   au MVP (les tests dbt couvrent les marts).
       # - integration tests                 → Phase 8
       # - build frontend (Next.js)          → Phase 9

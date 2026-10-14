@@ -3,13 +3,28 @@
 Le dataset synthétique de la Phase 5 est construit ici : il reproduit le schéma
 de `analytics_marts.mart_ml_dataset` avec des prix choisis pour que les médianes
 attendues soient calculables à la main.
+
+La fixture `mlflow_sqlite_uri` (Phase 7) est **de session** : la création des
+tables MLflow est coûteuse, on ne la paie donc qu'une fois pour toute la suite.
 """
 
 from __future__ import annotations
 
-import numpy as np
-import pandas as pd
-import pytest
+import os
+
+# Télémétrie MLflow coupée (vitesse et reproductibilité des tests).
+os.environ.setdefault("MLFLOW_DISABLE_TELEMETRY", "true")
+
+import numpy as np  # noqa: E402
+import pandas as pd  # noqa: E402
+import pytest  # noqa: E402
+
+
+@pytest.fixture(scope="session")
+def mlflow_sqlite_uri(tmp_path_factory) -> str:
+    """Backend MLflow SQLite partagé par les tests de la Phase 7."""
+    directory = tmp_path_factory.mktemp("mlflow")
+    return f"sqlite:///{directory / 'mlflow.db'}"
 
 
 @pytest.fixture

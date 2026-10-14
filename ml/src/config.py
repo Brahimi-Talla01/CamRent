@@ -1,4 +1,4 @@
-"""Configuration de la Phase 5 (baselines ML).
+"""Configuration du ML : baselines (Phase 5) et modèles (Phase 6).
 
 Module unique de configuration : aucun chemin ni seuil n'est écrit en dur dans
 les autres modules. Les valeurs qui dépendent de la machine passent par des

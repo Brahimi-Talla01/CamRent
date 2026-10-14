@@ -1,4 +1,4 @@
-"""CLI des baselines ML (Phase 5).
+"""CLI du ML : baselines (Phase 5) et modèles (Phase 6).
 
 Exemple :
 

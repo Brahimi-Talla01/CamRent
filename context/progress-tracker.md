@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 6 — Modèles ML** en cours (branche `phase/6-modeles-ml`) ; Phase 5 mergée (PR #26, squash `38ad713`), Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
+- **Phase 6 — Modèles ML** terminée et **mergée** (PR #27, squash `99969c6`, issue #7 close) ; Phase 5 mergée (PR #26, squash `38ad713`, issue #6 close), Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close). **Prochaine étape : Phase 7 — Model registry** (spec `context/feature-specs/07-model-registry.md`, issue #8) — plan à valider avant implémentation.
 
 ## Current Goal
 
-- Terminer et vérifier la Phase 6 : comparer les familles de modèles sur la même séparation que la Phase 5, retenir celui qui bat la baseline de façon vérifiable, construire une fourchette validée et rendre le modèle explicable ; reste PR → revue → merge.
+- Préparer et implémenter la Phase 7 : tracer chaque run (dataset, features, hyperparamètres, métriques, version du code, date), enregistrer le modèle retenu avec une version explicite (`rent-model-vN`) dans un registre MLflow, versionner le dataset et écrire une règle de promotion applicable. Plan à valider avant de coder.
 
 ## Completed
 
@@ -113,18 +113,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - tests : `tests/unit/test_ml_{data,split,baselines,evaluation}.py` (**37 tests**) ;
     `ruff` sans erreur ; métriques JSON déterministes (md5 identique au rejeu).
 
-- **Issue #20 — Enrichissement du référentiel géographique** (`pipelines/geo.py`) :
-  - 26 quartiers réels ajoutés au seed (15 à Douala, 11 à Yaoundé), vérifiés sur les palettes Wikipédia « Quartiers de Douala » et « Quartiers de Yaoundé ».
-  - alias tracés : sous-quartiers d'Akwa (`Akwa I`/`Akwa II` → `Akwa`), variante `Cite Ubo Palmiers` → `Cité des Palmiers` (confirmée par les annonces Koutchoumi), `Mbangue` → `Bangue`, et descriptions d'annonces nommant explicitement un quartier canonique.
-  - résultats : quartiers non reconnus **582 → 101 lignes** (19,5 % → 3,4 %), 138 → 78 libellés distincts ; quartiers canoniques utilisés 34 → 61 ; 0 conflit ville/quartier maintenu ; quarantine inchangée (78).
-  - conséquences mesurées : republications 1 970 → 2 001 (dédup technique affinée par la fusion des alias) ; rapports Phase 2 (`docs/phase-2/cleaning-report.md`) et EDA rejoués sans nouvelle valeur en dur.
-  - libellés volontairement laissés non reconnus (ambigus ou non vérifiables) : `Elig`, `DENVER`, `COAF`, `a`, noms de villes, descriptions libres.
-  - tests : `tests/unit/test_pipelines_geo.py` étendu (39 `passed`, 1 `skipped`) ; `ruff` sans erreur ; `python -m pipelines silver` puis EDA rejoués.
-
-## In Progress
-
-- **Phase 6 — Modèles ML** (issue #7, branche `phase/6-modeles-ml`) : code, tests et
-  rapport terminés, exécution réelle vérifiée ; reste PR → CI → revue → merge.
+- **Phase 6 — Modèles ML** (mergée dans `develop` via la PR #27, squash `99969c6` ; issue #7 close) :
   - `ml/src/` : `features` (imputation et profondeur de marché ajustées sur
     l'entraînement), `models` (6 familles × cible brute/`log1p` = 12 candidats),
     `training` (comparaison sur la même séparation, sélection multi-graines),
@@ -148,6 +137,24 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - deux bugs corrigés en cours de route : sélection qui ne consultait qu'une
     graine (contre la règle documentée) et accès non défendu au bloc de robustesse
     d'un candidat hors présélection — les deux couverts par des tests de régression.
+  - vérification finale (2026-10-14) : `ruff` 0, `pytest` **140 passed / 1 skipped**,
+    `python -m ml.src models` exit 0 (métriques identiques au rejeu) ; rapport sans
+    chemin absolu ; issues #6 et #7 rattachées à leur fusion (commentaire) et closes.
+
+- **Issue #20 — Enrichissement du référentiel géographique** (`pipelines/geo.py`) :
+  - 26 quartiers réels ajoutés au seed (15 à Douala, 11 à Yaoundé), vérifiés sur les palettes Wikipédia « Quartiers de Douala » et « Quartiers de Yaoundé ».
+  - alias tracés : sous-quartiers d'Akwa (`Akwa I`/`Akwa II` → `Akwa`), variante `Cite Ubo Palmiers` → `Cité des Palmiers` (confirmée par les annonces Koutchoumi), `Mbangue` → `Bangue`, et descriptions d'annonces nommant explicitement un quartier canonique.
+  - résultats : quartiers non reconnus **582 → 101 lignes** (19,5 % → 3,4 %), 138 → 78 libellés distincts ; quartiers canoniques utilisés 34 → 61 ; 0 conflit ville/quartier maintenu ; quarantine inchangée (78).
+  - conséquences mesurées : republications 1 970 → 2 001 (dédup technique affinée par la fusion des alias) ; rapports Phase 2 (`docs/phase-2/cleaning-report.md`) et EDA rejoués sans nouvelle valeur en dur.
+  - libellés volontairement laissés non reconnus (ambigus ou non vérifiables) : `Elig`, `DENVER`, `COAF`, `a`, noms de villes, descriptions libres.
+  - tests : `tests/unit/test_pipelines_geo.py` étendu (39 `passed`, 1 `skipped`) ; `ruff` sans erreur ; `python -m pipelines silver` puis EDA rejoués.
+
+## In Progress
+
+- *(aucune phase en cours)* — Phase 7 (Model registry, issue #8) **en préparation** :
+  plan à valider avant implémentation. Décisions à trancher : backend de suivi MLflow
+  (fichiers locaux vs PostgreSQL), portée des runs journalisés (12 candidats vs
+  présélection), et nom/version à promouvoir (`rent-model-v1`).
 
 ## Next Up
 

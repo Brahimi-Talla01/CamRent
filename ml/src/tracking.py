@@ -32,8 +32,8 @@ _METRIC_SUFFIXES: tuple[str, ...] = (
     "rmse",
     "r2",
     "medae",
-    "p90",
-    "part_a_moins_de_20_pct",
+    "erreur_absolue_p90",
+    "prix_moyen_observe",
     "temps_prediction_s",
 )
 _SPLITS: tuple[str, ...] = ("train", "validation", "test")
@@ -240,6 +240,11 @@ def log_candidate_runs(
                 }
             )
             mlflow.log_metrics(_log_metrics(result))
+            # Métriques par segment (validation) : journalisées comme artefact —
+            # le nombre de quartiers rendrait un tag illisible.
+            segments = result.get("segments_validation")
+            if segments:
+                mlflow.log_dict({"validation": segments}, "segments_validation.json")
             mlflow.set_tag("versions_logiciel", str(code["logiciel"]))
             run_ids[slug] = run.info.run_id
 
@@ -271,7 +276,18 @@ def log_retained_model(
         info = mlflow.sklearn.log_model(
             model, name=artifact_path, serialization_format="cloudpickle"
         )
+        mlflow.set_tag("modele_pipeline", metadata["nom"])
         mlflow.log_dict(metadata, "metadonnees.json")
         if interval_path is not None and Path(interval_path).exists():
             mlflow.log_artifact(str(interval_path))
         return info.model_uri
+
+
+def tag_registered_model(*, run_id: str, etiquette: str) -> None:
+    """Note sur le run le nom et la version du modèle enregistré.
+
+    C'est le lien explicite entre le run d'entraînement et la version du registre
+    (`rent-model-vN`) : sans lui, on saurait quel modèle a été servi mais pas
+    d'où il vient.
+    """
+    mlflow.MlflowClient().set_tag(run_id, "modele_enregistre", etiquette)

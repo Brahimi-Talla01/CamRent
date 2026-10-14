@@ -31,11 +31,13 @@ jobs:
           # par le chargeur Silver → PostgreSQL (Phase 4), `scikit-learn` par les
           # métriques des baselines ML (Phase 5) et le zoo de candidats de la
           # Phase 6, `lightgbm` par l'un des candidats de la Phase 6 (optionnel au
-          # runtime, mais le zoo doit pouvoir être testé). Elles sont testées avec
-          # des moteurs/données simulés (aucune base requise en CI).
+          # runtime, mais le zoo doit pouvoir être testé), `mlflow-skinny` (+ `alembic`
+          # et `skops`) par le suivi et le registre (Phase 7, testés sur un backend
+          # SQLite temporaire — aucun serveur MLflow requis). Elles sont testées avec des moteurs/données
+          # simulés (aucune base requise en CI).
           # (l'installation du paquet via pyproject sera activée quand le backend de
           # build sera figé).
-          pip install ruff pytest requests pandas pyarrow sqlalchemy scikit-learn lightgbm
+          pip install ruff pytest requests pandas pyarrow sqlalchemy scikit-learn lightgbm mlflow-skinny alembic skops
 
       - name: Lint (ruff)
         run: ruff check .

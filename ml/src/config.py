@@ -118,3 +118,27 @@ MODEL_METADATA_KEYS: Final[tuple[str, ...]] = (
     "intervalle",
     "versions",
 )
+
+# --- Phase 7 : registre de modèles (MLflow) -------------------------------
+
+# Expérience et modèle enregistrés. MLflow numérote les versions : le modèle
+# s'appelle `rent-model` et chaque promotion produit `rent-model-vN`.
+MLFLOW_EXPERIMENT: Final[str] = os.environ.get("MLFLOW_EXPERIMENT", "rent_prediction")
+REGISTERED_MODEL_NAME: Final[str] = os.environ.get("MLFLOW_REGISTERED_MODEL", "rent-model")
+# Alias du modèle actuellement promu (l'API de la Phase 8 le chargera ainsi).
+REGISTERED_MODEL_ALIAS: Final[str] = "champion"
+
+# URI de suivi MLflow. Aucun secret en dur : si `MLFLOW_TRACKING_URI` est
+# fourni, il est utilisé tel quel ; sinon on dérive une base PostgreSQL dédiée
+# (`mlflow`) depuis `DATABASE_URL` ; sinon on retombe sur un backend fichiers
+# local (rejeu hors-ligne, tests).
+MLFLOW_TRACKING_URI: Final[str | None] = os.environ.get("MLFLOW_TRACKING_URI")
+MLFLOW_ARTIFACT_LOCATION: Final[str | None] = os.environ.get("MLFLOW_ARTIFACT_LOCATION")
+MLFLOW_LOCAL_DIR: Final[Path] = Path(
+    os.environ.get("CAMRENT_MLFLOW_DIR", PROJECT_ROOT / "ml" / "mlruns")
+)
+# Nom de la base PostgreSQL dédiée au registre (dérivée de `DATABASE_URL`).
+MLFLOW_DATABASE_NAME: Final[str] = os.environ.get("MLFLOW_DATABASE_NAME", "mlflow")
+
+# Rapport de la Phase 7 (le registre lui-même vit dans PostgreSQL, non versionné).
+REGISTRY_REPORT_PATH: Final[Path] = PROJECT_ROOT / "docs" / "phase-7" / "registry-report.md"

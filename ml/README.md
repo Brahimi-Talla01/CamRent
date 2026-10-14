@@ -24,9 +24,13 @@ ml/
 │   ├── interpretability.py # importance, dépendance, explication locale (Phase 6)
 │   ├── persistence.py      # modèle retenu + métadonnées (Phase 6)
 │   ├── model_report.py     # rendu markdown des modèles (Phase 6)
-│   ├── markdown.py         # helpers de rendu partagés (Phases 5-6)
+│   ├── tracking.py         # suivi MLflow des runs (Phase 7)
+│   ├── registry.py         # enregistrement + règle de promotion (Phase 7)
+│   ├── registry_report.py  # rendu markdown du registre (Phase 7)
+│   ├── markdown.py         # helpers de rendu partagés (Phases 5-7)
 │   ├── run_models.py       # orchestration Phase 6
-│   └── __main__.py         # CLI `python -m ml.src baselines|models`
+│   ├── run_registry.py     # orchestration Phase 7
+│   └── __main__.py         # CLI `python -m ml.src baselines|models|registry`
 ├── artifacts/      # métriques JSON de la Phase 5 (ignoré par git)
 ├── evaluation/     # évaluation par segment (Phases 6-7)
 ├── models/         # artefacts de modèles (ignoré par git)
@@ -44,6 +48,13 @@ python -m ml.src models                         # Phase 6 : comparaison + modèl
 python -m ml.src models --no-lightgbm           # ignorer la dépendance optionnelle
 python -m ml.src models --no-persist            # sans écrire le modèle
 python -m ml.src models --models-dir /tmp/models
+
+# Phase 7 — journalisation des runs + enregistrement du modèle retenu.
+# Le registre exige un backend base de données : une base `mlflow` dédiée est
+# dérivée de `DATABASE_URL` (créée une fois : `createdb ... mlflow`).
+python -m ml.src registry
+python -m ml.src registry --tracking-uri sqlite:///mlflow.db   # backend local
+python -m ml.src registry --no-register                        # journaliser sans enregistrer
 ```
 
 Le rapport versionné est `docs/phase-5/baseline-report.md` (Phase 5) et
@@ -55,9 +66,14 @@ identique). Celui de la Phase 6 l'est **hors durées mesurées** — entraîneme
 prédiction varient d'un rejeu à l'autre, par nature ; toutes les métriques,
 grilles de graines et fourchettes sont identiques.
 
-Dépendances : `scikit-learn` (Phases 5-6) et `lightgbm` (Phase 6, **optionnelle** —
+Dépendances : `scikit-learn` (Phases 5-6), `lightgbm` (Phase 6, **optionnelle** —
 sans elle, la famille LightGBM est simplement retirée du zoo, l'installation est
-recommandée pour pouvoir comparer). Installer via `pip install -e '.[ml]'`.
+recommandée pour pouvoir comparer) et `mlflow` (Phase 7 — suivi et registre).
+Installer via `pip install -e '.[ml]'`.
+
+Le rapport versionné de la Phase 7 est `docs/phase-7/registry-report.md` ; le
+registre lui-même vit dans MLflow (base PostgreSQL `mlflow` ou backend SQLite de
+test), donc rien n'est versionné côté artefacts.
 
 ## Principes appliqués
 

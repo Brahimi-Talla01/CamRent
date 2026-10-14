@@ -68,6 +68,29 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-persist", action="store_true", help="ne pas écrire le modèle retenu"
     )
     models_cmd.add_argument("--verbose", action="store_true")
+
+    registry_cmd = sub.add_parser(
+        "registry",
+        help="journaliser les runs dans MLflow et enregistrer le modèle retenu "
+        "(Phase 7)",
+    )
+    registry_cmd.add_argument("--database-url", type=str, default=None)
+    registry_cmd.add_argument(
+        "--tracking-uri", type=str, default=None, help="URI de suivi MLflow (défaut : env)"
+    )
+    registry_cmd.add_argument("--experiment", type=str, default=None)
+    registry_cmd.add_argument("--report", type=Path, default=None)
+    registry_cmd.add_argument("--models-dir", type=Path, default=None)
+    registry_cmd.add_argument(
+        "--no-lightgbm", action="store_true", help="ignorer LightGBM (dépendance optionnelle)"
+    )
+    registry_cmd.add_argument(
+        "--no-persist", action="store_true", help="ne pas réécrire le modèle retenu"
+    )
+    registry_cmd.add_argument(
+        "--no-register", action="store_true", help="journaliser sans enregistrer de version"
+    )
+    registry_cmd.add_argument("--verbose", action="store_true")
     return parser
 
 
@@ -129,6 +152,51 @@ def run_models_command(
     return 0
 
 
+def run_registry_command(
+    database_url: str | None,
+    tracking_uri: str | None,
+    experiment: str | None,
+    report_path: Path | None,
+    models_dir: Path | None,
+    *,
+    include_lightgbm: bool,
+    persist: bool,
+    register: bool,
+) -> int:
+    from . import run_registry  # import local (MLflow chargé à la demande)
+
+    try:
+        summary = run_registry.run(
+            database_url,
+            tracking_uri=tracking_uri,
+            models_dir=models_dir,
+            report_path=report_path,
+            experiment=experiment,
+            include_lightgbm=include_lightgbm,
+            persist=persist,
+            register=register,
+        )
+    except (RuntimeError, ValueError, OSError, KeyError) as exc:
+        print(f"[ERREUR] registre impossible : {exc}", file=sys.stderr)
+        return 1
+
+    tracking = summary["tracking"]
+    print(f"[OK] expérience `{tracking['experiment']}` (id {tracking['experiment_id']})")
+    print(f"     {len(summary['runs'])} runs journalisés — URI {tracking['uri']}")
+    print(f"     dataset {summary['dataset']['version']} "
+          f"({summary['dataset']['n_observations']} observations)")
+    if summary.get("registered"):
+        registered = summary["registered"]
+        print(
+            f"     modèle enregistré : {registered['etiquette']} "
+            f"(alias {registered['alias']}, promu {registered['promotion']})"
+        )
+    else:
+        print("     aucun modèle enregistré")
+    print(f"     rapport : {report_path or 'docs/phase-7/registry-report.md'}")
+    return 0
+
+
 def run(
     database_url: str | None,
     artifacts_dir: Path | None,
@@ -185,6 +253,17 @@ def main(argv: list[str] | None = None) -> int:
             args.models_dir,
             include_lightgbm=not args.no_lightgbm,
             persist=not args.no_persist,
+        )
+    if args.command == "registry":
+        return run_registry_command(
+            args.database_url,
+            args.tracking_uri,
+            args.experiment,
+            args.report,
+            args.models_dir,
+            include_lightgbm=not args.no_lightgbm,
+            persist=not args.no_persist,
+            register=not args.no_register,
         )
     build_parser().print_help()
     return 1

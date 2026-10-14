@@ -27,7 +27,12 @@ ml = [
     "scikit-learn",
     # Phase 6 : modèle d'ensemble (comparé aux familles scikit-learn)
     "lightgbm",
-    "mlflow",
+    # Phase 7 : suivi MLflow et Model Registry. `mlflow-skinny` suffit (suivi +
+    # registre + flavors) sans le serveur/UI ni `pyarrow` du paquet complet ; il
+    # faut ajouter `alembic` (store SQLAlchemy) et `skops` (sérialisation sklearn).
+    "mlflow-skinny",
+    "alembic",
+    "skops",
 ]
 api = [
     "fastapi",

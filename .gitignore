@@ -42,6 +42,13 @@ ml/models/*
 ml/artifacts/*
 !ml/artifacts/.gitkeep
 
+# --- MLflow (suivi Phase 7) : régénérable, le livrable reste le rapport ---
+mlruns/
+ml/mlruns/
+mlflow.db
+ml/mlartifacts/
+ml/registry/
+
 # --- dbt ---
 dbt/target/
 dbt/logs/

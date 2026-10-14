@@ -26,6 +26,12 @@ promotion écrite décide de ce qui est servable.
 - **Source des runs** : les résultats de la Phase 6 (`run_models.build_results`),
   sur la **même séparation** (70/15/15, graine `20261009`) — les 12 candidats
   sont journalisés, pas seulement le retenu.
+- **Par run** : nom/version du modèle, dataset/version, features,
+  hyperparamètres, métriques MAE/RMSE/R² (+ MedAE, P90, prix moyen observé) sur
+  entraînement/validation/test, **métriques par segment** (artefact
+  `segments_validation.json` — ville, type, chambres, niveau de prix, quartier),
+  version du code et date. Le run du modèle retenu porte aussi le nom de la
+  version enregistrée (`modele_enregistre`).
 - **Backend** : une base PostgreSQL **dédiée** `mlflow` est dérivée de
   `DATABASE_URL` (le registre ne mélange pas ses tables avec celles de
   l'application). Un backend SQLite sert aux tests ; un file store local sert de

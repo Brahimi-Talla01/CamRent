@@ -4,11 +4,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 6 — Modèles ML** terminée et **mergée** (PR #27, squash `99969c6`, issue #7 close) ; Phase 5 mergée (PR #26, squash `38ad713`, issue #6 close), Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close). **Prochaine étape : Phase 7 — Model registry** (spec `context/feature-specs/07-model-registry.md`, issue #8) — plan à valider avant implémentation.
+- **Phase 7 — Model registry** terminée et **mergée** (PR #29, squash `daacdc0`, issue #8 close) ; Phase 6 mergée (PR #27, squash `99969c6`, issue #7 close), Phase 5 mergée (PR #26, squash `38ad713`, issue #6 close), Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close). **Prochaine étape : Phase 8 — API** (spec `context/feature-specs/08-api.md`, issue #9), servie depuis le modèle promu `models:/rent-model@champion`.
 
 ## Current Goal
 
-- Préparer et implémenter la Phase 7 : tracer chaque run (dataset, features, hyperparamètres, métriques, version du code, date), enregistrer le modèle retenu avec une version explicite (`rent-model-vN`) dans un registre MLflow, versionner le dataset et écrire une règle de promotion applicable. Plan à valider avant de coder.
+- Implémenter la Phase 8 : exposer le modèle promu et les données de marché via une API versionnée — `POST /api/v1/predictions` (loyer estimé, fourchette, `model_version`), endpoints marché et comparaison, schémas d'entrée stricts et erreurs prévisibles.
 
 ## Completed
 
@@ -141,6 +141,33 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     `python -m ml.src models` exit 0 (métriques identiques au rejeu) ; rapport sans
     chemin absolu ; issues #6 et #7 rattachées à leur fusion (commentaire) et closes.
 
+- **Phase 7 — Model registry** (mergée dans `develop` via la PR #29, squash `daacdc0` ; issue #8 close) :
+  - `ml/src/` : `tracking` (1 run MLflow par candidat), `registry` (version +
+    règle de promotion), `run_registry`, `registry_report`, CLI
+    `python -m ml.src registry`.
+  - **expérience `rent_prediction`** : 12 runs — hyperparamètres, MAE/RMSE/R² (+
+    MedAE, P90, prix moyen observé) sur les 3 ensembles, **métriques par segment**
+    (artefact `segments_validation.json`, 5 dimensions), version du dataset (hash
+    du contenu : `mart_ml_dataset@21774b224bdb`, 2 992 obs), SHA Git + versions
+    logicielles, date.
+  - **registre** : `rent-model-v1`, alias `champion` (promu — baseline battue 3/3,
+    seuil Phase 5 franchi, 3 séparations) ; rechargé depuis
+    `models:/rent-model@champion` et servant une prévision.
+  - **règle de promotion** écrite et applicable (`bat_la_baseline`,
+    `seuil_phase_5`, `reproductible`) ; promotion explicite, aucun déploiement
+    automatique, aucun modèle non enregistré déployable.
+  - **backend** : base PostgreSQL dédiée `mlflow` dérivée de `DATABASE_URL` (SQLite
+    pour les tests, file store refusé pour le registre) ; `mlflow-skinny` (+
+    `alembic`, `skops`) au lieu de `mlflow` complet — pas de serveur ni de 50 Mo
+    de `pyarrow`.
+  - tests : `tests/unit/test_ml_{tracking,registry}.py` (**14 tests**) ; suite
+    complète **154 passed / 1 skipped** ; `ruff` sans erreur ; CI vertes (PR #29,
+    correctif PR #30).
+  - deux bugs corrigés et couverts par des tests : `str(URL)` SQLAlchemy masquait
+    le mot de passe en `***` (impossible de s'authentifier) et une expérience
+    MLflow supprimée doit être restaurée avant réutilisation ; le rapport
+    versionné masque l'URI (aucun secret dans un fichier suivi).
+
 - **Issue #20 — Enrichissement du référentiel géographique** (`pipelines/geo.py`) :
   - 26 quartiers réels ajoutés au seed (15 à Douala, 11 à Yaoundé), vérifiés sur les palettes Wikipédia « Quartiers de Douala » et « Quartiers de Yaoundé ».
   - alias tracés : sous-quartiers d'Akwa (`Akwa I`/`Akwa II` → `Akwa`), variante `Cite Ubo Palmiers` → `Cité des Palmiers` (confirmée par les annonces Koutchoumi), `Mbangue` → `Bangue`, et descriptions d'annonces nommant explicitement un quartier canonique.
@@ -151,15 +178,14 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## In Progress
 
-- *(aucune phase en cours)* — Phase 7 (Model registry, issue #8) **en préparation** :
-  plan à valider avant implémentation. Décisions à trancher : backend de suivi MLflow
-  (fichiers locaux vs PostgreSQL), portée des runs journalisés (12 candidats vs
-  présélection), et nom/version à promouvoir (`rent-model-v1`).
+- *(aucune phase en cours)* — Phase 8 (API, issue #9) **à démarrer**. Décisions à
+  trancher : structure de `backend/`, schémas d'entrée/sortie, et garantie que le
+  serving reste mince (appel du modèle + tables Gold, sans entraînement).
 
 ## Next Up
 
-- Phase 7 — Registre de modèles (MLflow) et suivi des runs (issue #8).
-- Phase 8 — API d'inférence servie à partir de `ml/models/rent_model_v1.joblib`.
+- Phase 8 — API : `POST /api/v1/predictions`, endpoints marché et comparaison (issue #9).
+- Phase 9 — Frontend (`context/ui-context.md` à compléter avant d'implémenter).
 - Tâche ouverte : pondération/explicitation des prix bornés et des républications
   dans l'entraînement.
 
@@ -205,3 +231,4 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Phase 6** : exécution réelle sur `mart_ml_dataset` (2 992 obs) — 12 candidats comparés ; les trois ensembles d'arbres sur `log1p` sont au coude-à-coude (75 161 / 75 281 / 75 425 FCFA), très loin devant les linéaires (82 032 à 151 066) ; la transformation `log1p` vaut 4 000 à 10 000 FCFA par famille. LightGBM non retenu (dépendance et temps d'entraînement sans gain démontré), mais comparé et documenté. Le rang de la graine de référence ne suffit pas : `random_forest_log1p` 3ᵉ sur la graine de référence, 1ᵉʳ sur les 2 autres.
 - **Phase 6** : conteneur `camrent-postgres` en écoute sur le **port 5433** alors que `.env` porte `POSTGRES_PORT=5432` — l'URL réelle est `postgresql://camrent:change-me@localhost:5433/camrent` (écrit dans `ml/README.md`).
 - Phase 4 : `dbt build` 95/95 (12 modèles + 83 tests) ; volumes vérifiés en base : 2 992 lignes traversant toutes les couches ; mart_city_prices : Douala N=2 811 méd. 100 000, Yaoundé N=181 méd. 150 000 (conforme EDA) ; 253 groupes quartier×type×chambres ; médiane null strictement sous N=30 ; 101 non reconnus / 2 001 républications / 2 564 prix bornés / 17 aberrations conservés avec drapeaux.
+- **Phase 7** : `mlflow-skinny` 3.17.1 (Python 3.14) — `alembic` et `skops` sont nécessaires en plus du `mlflow-skinny` ; base de registre `mlflow` créée une fois dans le conteneur (`createdb -U camrent mlflow`) ; l'URI de suivi est **dérivée de `DATABASE_URL`** — jamais via `str(URL)` (SQLAlchemy masquerait le mot de passe en `***`) ; la création des tables MLflow est très lente sur SQLite (~100 s) alors qu'elle est immédiate sur PostgreSQL.

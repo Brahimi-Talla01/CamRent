@@ -111,6 +111,14 @@ def build_results(
     importance = interpretability.permutation_importance_table(
         retained["modele"], parts["validation"], seed=seed
     )
+    # Métriques par segment de **chaque** candidat (validation) : le registre
+    # (Phase 7) doit les journaliser par run, et la comparaison par famille en
+    # profite. Même règle que pour le modèle retenu (seuil N<30 signalé, jamais
+    # masqué).
+    segments_par_candidat = {
+        slug: training.segment_block(result, parts, min_n=min_n, split_name="validation")
+        for slug, result in candidates.items()
+    }
     # Dépendance partielle limitée aux variables présentes dans le mart : les
     # features dérivées (`logements_dans_quartier`) sont recalculées par le
     # pipeline, les permuter sur le mart n'aurait aucun effet (piège classique).
@@ -179,9 +187,12 @@ def build_results(
         "baselines": measured_baselines,
         "candidats": {
             slug: {
-                key: value
-                for key, value in result.items()
-                if key not in ("modele", "predictions")
+                **{
+                    key: value
+                    for key, value in result.items()
+                    if key not in ("modele", "predictions")
+                },
+                "segments_validation": segments_par_candidat.get(slug, {}),
             }
             for slug, result in candidates.items()
         },

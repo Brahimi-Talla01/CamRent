@@ -21,8 +21,8 @@ SPLIT_METRICS = {
     "rmse": 20.0,
     "r2": 0.5,
     "medae": 9.0,
-    "p90": 30.0,
-    "part_a_moins_de_20_pct": 60.0,
+    "erreur_absolue_p90": 30.0,
+    "prix_moyen_observe": 90.0,
     "temps_prediction_s": 0.01,
 }
 
@@ -41,6 +41,12 @@ def _candidate(slug: str, *, famille: str = "test") -> dict[str, object]:
             "train": dict(SPLIT_METRICS),
             "validation": dict(SPLIT_METRICS),
             "test": dict(SPLIT_METRICS),
+        },
+        "segments_validation": {
+            "ville": [
+                {"ville": "Douala", "n": 8, "mae": 10.0, "sous_seuil_de_publication": False},
+                {"ville": "Yaoundé", "n": 2, "mae": 22.0, "sous_seuil_de_publication": True},
+            ]
         },
     }
 
@@ -125,6 +131,13 @@ def test_log_candidate_runs_writes_one_run_per_candidate(
     assert first.data.tags["version_dataset"] == dataset["version"]
     assert first.data.metrics["mae_validation"] == 12.0
     assert first.data.params["graine"] == "7"
+    # métriques par segment (spec : journalisées par run)
+    assert first.data.metrics["erreur_absolue_p90_validation"] == 30.0
+    assert first.data.metrics["prix_moyen_observe_validation"] == 90.0
+    segments = mlflow.artifacts.load_dict(
+        first.info.artifact_uri.rstrip("/") + "/segments_validation.json"
+    )
+    assert segments["validation"]["ville"][0]["ville"] == "Douala"
 
 
 def test_log_retained_model_attaches_a_loadable_model(

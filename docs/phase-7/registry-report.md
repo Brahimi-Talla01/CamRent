@@ -1,6 +1,6 @@
 # Phase 7 — Rapport du registre de modèles (MLflow)
 
-**Généré le :** 2026-10-14 07:31 UTC
+**Généré le :** 2026-10-14 08:13 UTC
 
 Objectif : tracer chaque expérience et versionner le modèle retenu, pour ne pas choisir un modèle « sur la base d'une impression » — et n'en déployer aucun qui ne soit enregistré (spec `context/feature-specs/07-model-registry.md`).
 
@@ -17,24 +17,24 @@ Objectif : tracer chaque expérience et versionner le modèle retenu, pour ne pa
 
 | Candidat | Famille | Cible | MAE entraînement | MAE validation | MAE test | Run |
 |---|---|---|---|---|---|---|
-| `gradient_boosting_log1p` | ensemble d'arbres (boosting) | log1p | 89 512 | 75 161 | 162 361 | `4c8c6c74` |
-| `lightgbm_log1p` | ensemble d'arbres (boosting) | log1p | 89 288 | 75 281 | 162 280 | `f0f86202` |
-| `random_forest_log1p` | ensemble d'arbres (bagging) | log1p | 84 880 | 75 425 | 159 130 | `cc38b1c7` |
-| `random_forest_brut` | ensemble d'arbres (bagging) | brut | 95 670 | 79 065 | 166 064 | `ad2fe336` |
-| `ridge_log1p` | linéaire régularisé | log1p | 94 671 | 82 032 | 166 734 | `ad9c8e05` |
-| `linear_log1p` | linéaire | log1p | 91 174 | 82 169 | 165 525 | `0246a945` |
-| `lightgbm_brut` | ensemble d'arbres (boosting) | brut | 100 277 | 83 021 | 172 409 | `2da2c76b` |
-| `gradient_boosting_brut` | ensemble d'arbres (boosting) | brut | 100 491 | 83 195 | 173 868 | `cda8063e` |
-| `ridge_brut` | linéaire régularisé | brut | 110 681 | 96 560 | 183 116 | `e36f55cb` |
-| `linear_brut` | linéaire | brut | 107 243 | 97 084 | 182 445 | `c831593f` |
-| `lasso_brut` | linéaire régularisé | brut | 116 358 | 98 455 | 185 972 | `0b919c94` |
-| `lasso_log1p` | linéaire régularisé | log1p | 159 990 | 151 066 | 235 167 | `49665a76` |
+| `gradient_boosting_log1p` | ensemble d'arbres (boosting) | log1p | 89 512 | 75 161 | 162 361 | `76fc6e11` |
+| `lightgbm_log1p` | ensemble d'arbres (boosting) | log1p | 89 288 | 75 281 | 162 280 | `2f07ff09` |
+| `random_forest_log1p` | ensemble d'arbres (bagging) | log1p | 84 880 | 75 425 | 159 130 | `c04e80d7` |
+| `random_forest_brut` | ensemble d'arbres (bagging) | brut | 95 670 | 79 065 | 166 064 | `cd44d510` |
+| `ridge_log1p` | linéaire régularisé | log1p | 94 671 | 82 032 | 166 734 | `eb4062b9` |
+| `linear_log1p` | linéaire | log1p | 91 174 | 82 169 | 165 525 | `6be8d62f` |
+| `lightgbm_brut` | ensemble d'arbres (boosting) | brut | 100 277 | 83 021 | 172 409 | `952e6cdb` |
+| `gradient_boosting_brut` | ensemble d'arbres (boosting) | brut | 100 491 | 83 195 | 173 868 | `29faa5cf` |
+| `ridge_brut` | linéaire régularisé | brut | 110 681 | 96 560 | 183 116 | `37149eeb` |
+| `linear_brut` | linéaire | brut | 107 243 | 97 084 | 182 445 | `876253b8` |
+| `lasso_brut` | linéaire régularisé | brut | 116 358 | 98 455 | 185 972 | `a9bfd4cb` |
+| `lasso_log1p` | linéaire régularisé | log1p | 159 990 | 151 066 | 235 167 | `3263b4bd` |
 
 ## Modèle enregistré
 
 - **Étiquette :** `rent-model-v1` (nom `rent-model`, version 1).
 - **Alias :** `champion`
-- **Run source :** `cc38b1c7c39149b1b0c997c2c480ed6c`.
+- **Run source :** `c04e80d703874fbaa3d7e59983614d5d`.
 - **Promu :** True.
 
 ## Règle de promotion

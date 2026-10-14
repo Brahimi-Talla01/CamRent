@@ -117,6 +117,10 @@ def run(
                 dataset=dataset,
                 code=code,
             )
+        if registered:
+            tracking.tag_registered_model(
+                run_id=logged["retenu"], etiquette=registered["etiquette"]
+            )
 
     summary = build_summary(
         results,

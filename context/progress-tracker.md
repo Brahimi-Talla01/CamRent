@@ -4,11 +4,14 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Phase
 
-- **Phase 7 — Model registry** terminée et **mergée** (PR #29, squash `daacdc0`, issue #8 close) ; Phase 6 mergée (PR #27, squash `99969c6`, issue #7 close), Phase 5 mergée (PR #26, squash `38ad713`, issue #6 close), Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close). **Prochaine étape : Phase 8 — API** (spec `context/feature-specs/08-api.md`, issue #9), servie depuis le modèle promu `models:/rent-model@champion`.
+- **Phase 7 — Model registry** terminée et **mergée** (PR #29, squash `daacdc0`, issue #8 close) ; Phase 6 mergée (PR #27, squash `99969c6`, issue #7 close), Phase 5 mergée (PR #26, squash `38ad713`, issue #6 close), Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
+- **Audit et plan de réalignement** (2026-10-15) : audit en lecture seule des phases 00-07 et plan validé dans `context/plans/camrent-audit-and-realignment-plan.md` (branche `chore/audit-realignement`). Les 10 décisions d'arbitrage ont été validées par le porteur du projet ; elles sont consignées dans la section « Recadrage produit — décisions validées » ci-dessous ; le suivi d'exécution par lot vit au §14 du plan.
+- **Lots A1 et A2 terminés et vérifiés (2026-10-15)** — détails en « Completed » ci-dessous. A1 = décisions actées dans la documentation ; A2 = registre de modèles gouverné (promotion approuvée explicitement, version servie épinglée dans `ml/models/champion.json`, hash de dataset complet, emplacement d'artefacts épinglé). Vérifications : `ruff` 0 erreur, `pytest` **161 réussis / 1 ignoré**, refus de promotion sans approbation (exit 1, registre inchangé) puis promotion `rent-model-v3` avec approbation. Specs de cadrage 13/14/15 créées (reste du lot 0). Ces lots sont portés par la **PR #33** (branche `chore/audit-realignement` → `develop`).
+- **Prochaine étape : lot B — qualité et contrat de données** (quarantaine et métadonnées de lots interrogeables en base, table de qualité, colonne `rent_semantics`, bornes `bathrooms`). **La Phase 8 n'est pas encore démarrée** : elle suivra en deux temps (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
 
 ## Current Goal
 
-- Implémenter la Phase 8 : exposer le modèle promu et les données de marché via une API versionnée — `POST /api/v1/predictions` (loyer estimé, fourchette, `model_version`), endpoints marché et comparaison, schémas d'entrée stricts et erreurs prévisibles.
+- **Lot B — qualité et contrat de données** : rendre la quarantaine et les métadonnées de collecte interrogeables en base (motifs de rejet agrégés), ajouter `rent_semantics` au dataset ML et contrôler les bornes `bathrooms` — prérequis du module « Qualité » du futur back-office et de la Phase 11.
 
 ## Completed
 
@@ -176,31 +179,88 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - libellés volontairement laissés non reconnus (ambigus ou non vérifiables) : `Elig`, `DENVER`, `COAF`, `a`, noms de villes, descriptions libres.
   - tests : `tests/unit/test_pipelines_geo.py` étendu (39 `passed`, 1 `skipped`) ; `ruff` sans erreur ; `python -m pipelines silver` puis EDA rejoués.
 
+- **Lot A1 — décisions actées (documentation seule, 2026-10-15)** :
+  - `context/plans/camrent-audit-and-realignment-plan.md` : plan de réalignement validé, 10 décisions intégrées (§9), ordre des lots (§10), suivi d'exécution (§14).
+  - `context/progress-tracker.md` : phase courante, objectif, section « Recadrage produit — décisions validées (2026-10-15) », questions ouvertes mises à jour.
+  - `context/project-overview.md` : extensions retenues (back-office à fondations d'abord, marketplace conditionnée, Conakry séparé) et décisions de périmètre (sémantique de cible, prix censurés, registre gouverné, CI de données).
+  - `context/architecture-context.md` : frontières des sous-systèmes A-E (sans microservices) et section « Gouvernance du registre de modèles ».
+  - `context/feature-specs/07-model-registry.md` : promotion nominative approuvée, épinglage de version, hash de dataset complet, artefacts épinglés.
+  - Aucune modification de code par ce lot.
+
+- **Lot A2 — registre de modèles gouverné (2026-10-15)** (équivalent du « Lot 1 » du plan) :
+  - `ml/src/tracking.py` : `dataset_version` hashe **tout le contenu** du mart (schéma + valeurs, `pd.isna` géré explicitement) et expose `n_colonnes`/`colonnes` — sensible à tout changement de feature (P5).
+  - `ml/src/registry.py` + `run_registry.py` + `__main__.py` : `require_promotion_approval()` ; une promotion non approuvée est refusée **avant toute écriture** ; tags `approuve_par` / `approuve_le` ; options `--confirm-promotion` / `--approved-by` (P2).
+  - `ml/src/registry.py::write_champion_pin` : version servie épinglée dans le fichier **versionné** `ml/models/champion.json` (seul artefact de modèle non ignoré — vérifié par `git check-ignore`, exit 1) (P2).
+  - `ml/src/config.py` : `CHAMPION_PIN_PATH` ; `MODEL_ARTIFACT_NAME` requalifié (artefact de phase 6, pas une version) ; `MLFLOW_ARTIFACT_LOCATION` épinglé à `ml/artifacts/mlflow` (indépendant du répertoire d'exécution) ; `.env.example` et `.gitignore` (`!ml/models/champion.json`) alignés (P2).
+  - `ml/src/registry_report.py` : lignes d'approbation et version épinglée, chemins affichés relatifs (jamais d'absolu dans un rapport versionné).
+  - tests : `tests/unit/test_ml_{tracking,registry}.py` étendus (**7 nouveaux tests**) + `tests/unit/conftest.py` (artefacts de test isolés) ; suite complète **161 réussis, 1 ignoré** (le skip `pyarrow` préexistant) ; `ruff` 0 erreur ; vérifié en CLI : refus exit 1 sans approbation (2 versions inchangées, aucun pin créé), puis promotion `rent-model-v3` (alias `champion` → v3, tags d'approbation, `champion.json` écrit).
+  - **Reste ouvert (P2 partiel, plan §7.5)** : politique de rétention des runs — l'expérience `rent_prediction` compte 84 runs sans politique d'hygiène.
+
 ## In Progress
 
-- *(aucune phase en cours)* — Phase 8 (API, issue #9) **à démarrer**. Décisions à
-  trancher : structure de `backend/`, schémas d'entrée/sortie, et garantie que le
-  serving reste mince (appel du modèle + tables Gold, sans entraînement).
+- **Aucun lot en cours.** Le lot A2 est terminé et vérifié (2026-10-15) ; ses changements (et ceux du lot A1) sont **non commités** sur la branche `chore/audit-realignement`.
 
 ## Next Up
 
-- Phase 8 — API : `POST /api/v1/predictions`, endpoints marché et comparaison (issue #9).
-- Phase 9 — Frontend (`context/ui-context.md` à compléter avant d'implémenter).
-- Tâche ouverte : pondération/explicitation des prix bornés et des républications
-  dans l'entraînement.
+- **Lot B — qualité et contrat de données** (plan §10 « Lot 2 ») : quarantaine et métadonnées de lots interrogeables en
+  base, table de qualité (motifs de rejet), version de parseur et empreinte de contenu, colonne
+  `rent_semantics` dans `mart_ml_dataset`, contrôle des bornes `bathrooms`.
+- **Lot C — CI de données** (plan §10 « Lot 3 ») : service PostgreSQL et `dbt build` en CI, backend de build figé,
+  `.env.example` aligné sur le port 5433, schémas dbt `dev`/`prod` séparés.
+- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 ») : **08a API publique** (prédiction, marché, comparaison — modèle
+  **épinglé**) puis **08b API interne** (permissions, jobs, accès administrateur).
+- **Lot E — prix censurés** : adapter la cible et l'intervalle, par une expérience **mesurée**, après
+  stabilisation du registre.
+- **Puis** : Phase 9 (09a estimation publique / 09b administration, `ui-context.md` figé avant code),
+  specs 13/14 du back-office (décision 7 : implémentation **après** 08 et 09 ; specs de cadrage créées
+  le 2026-10-15), spec 15 marketplace (phase de décision — spec de cadrage créée, aucun code engagé),
+  Phases 10/11/12 selon besoin mesuré, Conakry (chantier séparé, décision 10).
+- Hygiène du registre (rétention des runs) à traiter dans un lot ultérieur (P2 partiel).
+- Tâche ouverte : pondération/explicitation des prix bornés et des républications dans
+  l'entraînement (rejoint le lot E).
+
+## Recadrage produit — décisions validées (2026-10-15)
+
+Décisions prises par le porteur du projet après l'audit (détail dans
+`context/plans/camrent-audit-and-realignment-plan.md` §9) :
+
+1. **Marketplace** : conservée dans le périmètre du produit, mais **structurée** — à cadrer par une
+   spec de découverte avant toute implémentation. Elle n'est pas retirée, elle n'est pas non plus
+   engagée.
+2. **Priorité** : le **back-office d'abord**, entendu comme ses **fondations** (capacités gouvernées
+   et interrogeables), l'interface venant après les phases 08 et 09.
+3. **Registre** : **MLflow conservé** ; la promotion d'un modèle est **approuvée par un
+   administrateur** (rôle `admin`).
+4. **Prix censurés** : **adapter la cible et l'intervalle** (expérience mesurée, lot E), au lieu
+   d'exclure ou de pondérer à l'aveugle.
+5. **Périmètre géographique** : **Yaoundé et Douala** ; **Conakry est un chantier séparé**
+   (devise, référentiel et sources locales), sans données ni modèle dans l'immédiat.
+6. **Collecte** : **on finalise le MVP d'abord** — aucune nouvelle collecte engagée maintenant.
+7. **Back-office** : les specs **13/14 viennent après 08 et 09** ; rôles internes à préciser
+   (l'administrateur est le premier rôle identifié).
+8. **CI** : renforcée **oui** — tests de données (`dbt build`) sur PostgreSQL en CI.
+9. **Sémantique de cible** : **ajouter** une colonne `rent_semantics` (`asking_rent` / `unknown`),
+   sans renommer la cible existante.
+10. **Conakry** : décision à instruire **séparément** (données, code, produit, commercialisation).
+
+Matérialisation technique retenue : artefacts de modèles stockés **localement, non versionnés**, dans
+un chemin **épinglé et documenté** (`ml/artifacts/mlflow`), la version servie étant épinglée dans le
+fichier versionné `ml/models/champion.json`.
 
 ## Open Questions
 
-- **Prix censurés** : conservés avec `price_is_bound` (borne inférieure, 2 564 lignes sur 2 992) ; le seuil de la Phase 5 et la sélection de la Phase 6 sont mesurés sur toutes les observations — stratégie de pondération/explicitation **toujours non figée** (issue ouverte, à traiter avec les républications).
+- **Hygiène du registre (P2 partiel)** : la politique de rétention des runs n'est pas implémentée — l'expérience `rent_prediction` compte **84 runs** (cumul des exécutions). À traiter dans un lot ultérieur (plan §7.5) ; aucune suppression de version n'est automatique.
+- **Emplacement d'artefacts historique** : l'expérience `rent_prediction` conserve l'emplacement enregistré à sa création (`mlruns/3`) car MLflow n'expose pas de modification ; l'emplacement épinglé (`ml/artifacts/mlflow`) s'appliquera aux nouvelles expériences (documenté dans `docs/phase-7/README.md`).
+- **Prix censurés** : conservés avec `price_is_bound` (borne inférieure, 2 564 lignes sur 2 992) ; le seuil de la Phase 5 et la sélection de la Phase 6 sont mesurés sur toutes les observations. Décision prise (2026-10-15) : **adapter la cible et l'intervalle** — mise en œuvre dans le lot E, mesures à produire (lot E non commencé).
 - **Gain ML à démontrer** : **démontré** en Phase 6 — `random_forest_log1p` à 75 425 FCFA de MAE de validation (seuil 79 773), MedAE divisée par près de deux, gain confirmé sur 3 séparations (médian 12,35 %). Le seuil IC n'est franchi que sur 1 graine sur 3 : les arbitrages produit ne doivent pas reposer sur un écart inférieur à cette marge.
-- **Surface** (absente) : la collecter, ou concevoir le MVP sans elle ?
+- **Surface** (absente) : décision du 2026-10-15 — **on finalise le MVP d'abord**, sans nouvelle collecte ; la surface reste hors du périmètre des features.
 - **Référentiel géographique** : seed enrichi (issue #20) ; 101 lignes (78 libellés distincts) restent non reconnues — descriptions d'annonces, libellés ambigus (`Elig`) ou non vérifiables (`DENVER`, `COAF`) conservés et signalés, sans mapping inventé.
 - **Republications** : 2 001 lignes marquées `is_republication` ; décider si conservées/pondérées pour l'entraînement (le drapeau est exposé dans `mart_ml_dataset` pour une décision explicite en Phase 5-6).
 - **Endpoints MINFI / INS** : documents stockés bruts, endpoints et formats à valider.
 - **Dataset tiers `deegeorgie`** : usage strictement local (sans licence), non redistribué.
 - Méthode d'intervalle de prédiction du produit : **résolu en Phase 6** — régression quantile (gradient boosting aux quantiles 5 % / 95 %), retenue sur le split-conformal car elle couvre le niveau visé (90,7 % en validation et en test) avec une fourchette médiane deux fois plus étroite ; la calibration n'utilise que la validation, la couverture de test sert de vérification.
 - Séparation train/validation/test : **aléatoire** retenue (70/15/15, graine fixe) — `posted_at` vide et `collected_at` sur une seule journée, donc séparation chronologique impossible (Phase 5). À revoir si une collecte étalée dans le temps devient disponible.
-- Périmètre géographique exact du MVP (liste des quartiers).
+- Périmètre géographique du MVP : **Yaoundé et Douala** (décision du 2026-10-15) ; la liste exacte des quartiers reste à arrêter. **Conakry** est un chantier **séparé**, à instruire avant toute donnée ou modèle.
 
 ## Architecture Decisions
 
@@ -232,3 +292,4 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Phase 6** : conteneur `camrent-postgres` en écoute sur le **port 5433** alors que `.env` porte `POSTGRES_PORT=5432` — l'URL réelle est `postgresql://camrent:change-me@localhost:5433/camrent` (écrit dans `ml/README.md`).
 - Phase 4 : `dbt build` 95/95 (12 modèles + 83 tests) ; volumes vérifiés en base : 2 992 lignes traversant toutes les couches ; mart_city_prices : Douala N=2 811 méd. 100 000, Yaoundé N=181 méd. 150 000 (conforme EDA) ; 253 groupes quartier×type×chambres ; médiane null strictement sous N=30 ; 101 non reconnus / 2 001 républications / 2 564 prix bornés / 17 aberrations conservés avec drapeaux.
 - **Phase 7** : `mlflow-skinny` 3.17.1 (Python 3.14) — `alembic` et `skops` sont nécessaires en plus du `mlflow-skinny` ; base de registre `mlflow` créée une fois dans le conteneur (`createdb -U camrent mlflow`) ; l'URI de suivi est **dérivée de `DATABASE_URL`** — jamais via `str(URL)` (SQLAlchemy masquerait le mot de passe en `***`) ; la création des tables MLflow est très lente sur SQLite (~100 s) alors qu'elle est immédiate sur PostgreSQL.
+- **Lot A2 (2026-10-15)** : promotion non approuvée refusée **avant toute écriture** (vérifié en CLI : 2 versions inchangées, aucun fichier épinglé créé, exit 1) ; avec `--confirm-promotion --approved-by` : création de `rent-model-v3`, alias `champion` → v3, tags `approuve_par`/`approuve_le`, écriture de `ml/models/champion.json` ; registre à **3 versions** (v1 rejeu du 2026-10-14, v2, v3). Le fichier `ml/models/champion.json` est le **seul** artefact de modèle versionné (`git check-ignore` exit 1) ; `ml/artifacts/mlflow` est ignoré. `stash@{0}` conserve les anciens rapports régénérés (phases 6-7) ; aucun commit ni push.

@@ -24,7 +24,32 @@ Phase 9  Frontend
 Phase 10 Orchestration
 Phase 11 Observabilité
 Phase 12 Production
+Phase 13 Back-office — fondations (après 08 et 09)
+Phase 14 Back-office — rapports et observabilité
+Phase 15 Marketplace — découverte et cadrage (phase de décision)
 ```
+
+## Lots de réalignement (décision du 2026-10-15)
+
+Depuis le recadrage produit, l'avancement suit l'enchaînement :
+
+```
+audit (lecture seule) → plan validé → lot vérifié → mise à jour du suivi
+```
+
+- Le plan validé est `context/plans/camrent-audit-and-realignment-plan.md` : décisions au §9,
+  ordre des lots au §10, suivi d'exécution au §14. `context/progress-tracker.md` reflète l'état
+  réel après chaque lot vérifié.
+- **Un lot = un changement cohérent, vérifiable et réversible** ; les lots en cours vivent sur une
+  branche dédiée, sans push ni commit sans demande explicite.
+- Sous-systèmes fonctionnels (frontières, sans microservices — détail dans
+  `architecture-context.md`) : **A — Data Platform** (collecte, qualité, transformations),
+  **B — Back-office** (supervision interne, fondations d'abord), **C — Estimation** (API publique,
+  modèle enregistré et approuvé uniquement), **D — Marketplace** (conditionnée, phase de décision),
+  **E — Services communs** (auth, rôles, jobs, observabilité).
+- Ordonnancement actuel : lots B (qualité de données) et C (CI de données), puis Phase 8 en deux
+  temps (08a publique, 08b interne), Phase 9 (09a public, 09b administration), puis specs 13/14
+  (back-office, après 08 et 09).
 
 ## Règles de périmètre
 

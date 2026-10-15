@@ -106,6 +106,29 @@ def test_dataset_version_changes_when_the_target_changes(ml_frame: pd.DataFrame)
     )
 
 
+def test_dataset_version_changes_when_a_feature_changes(ml_frame: pd.DataFrame) -> None:
+    """Régression : le hash ne couvrait que `listing_key` et la cible.
+
+    Une feature modifiée donnait donc la même version de dataset, ce qui faisait
+    passer un run pour reproductible alors que ses données d'entrée avaient changé.
+    """
+    modified = ml_frame.copy()
+    modified.loc[0, "bedrooms"] = int(modified.loc[0, "bedrooms"]) + 1
+    assert (
+        tracking.dataset_version(modified)["hash_md5"]
+        != tracking.dataset_version(ml_frame)["hash_md5"]
+    )
+
+
+def test_dataset_version_covers_the_schema(ml_frame: pd.DataFrame) -> None:
+    """Ajouter une colonne change la version (schéma inclus dans le hash)."""
+    with_column = ml_frame.assign(rent_semantics="asking_rent")
+    version = tracking.dataset_version(with_column)
+    assert version["n_colonnes"] == len(ml_frame.columns) + 1
+    assert "rent_semantics" in version["colonnes"]
+    assert version["hash_md5"] != tracking.dataset_version(ml_frame)["hash_md5"]
+
+
 def test_code_version_reports_git_and_software() -> None:
     code = tracking.code_version()
     assert {"git_sha", "git_branch", "git_dirty", "logiciel"} <= set(code)

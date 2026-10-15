@@ -12,7 +12,7 @@ from sklearn.linear_model import LinearRegression
 
 mlflow = pytest.importorskip("mlflow")
 
-from ml.src import registry, tracking  # noqa: E402
+from ml.src import config, registry, registry_report, tracking  # noqa: E402
 
 
 def _selection(*, gain: float, beat: int, total: int, seuil: bool) -> dict[str, object]:
@@ -68,6 +68,44 @@ def test_promotion_rule_is_documented_and_serializable() -> None:
     assert "explicite" in rule["portee"]
 
 
+def test_promotion_requires_an_explicit_approval() -> None:
+    """Règle satisfaite ≠ promotion : l'approbation est nominative."""
+    decision = registry.promotion_decision(
+        _selection(gain=22.31, beat=3, total=3, seuil=True), THRESHOLD
+    )
+    assert decision["promotion"] is True
+    with pytest.raises(ValueError, match="approbation"):
+        registry.require_promotion_approval(decision)
+    # Une identité explicite suffit : la fonction ne lève plus.
+    registry.require_promotion_approval(decision, approved_by="admin")
+
+
+def test_no_approval_is_required_when_the_rule_is_not_satisfied() -> None:
+    decision = registry.promotion_decision(
+        _selection(gain=-1.0, beat=0, total=1, seuil=False), THRESHOLD
+    )
+    assert decision["promotion"] is False
+    registry.require_promotion_approval(decision)
+
+
+def test_register_refuses_to_promote_without_approval(mlflow_sqlite_uri: str) -> None:
+    """Aucune version n'est créée tant que la promotion n'est pas approuvée."""
+    with pytest.raises(ValueError, match="approbation"):
+        registry.register(
+            model_uri="runs:/inexistant/modele",
+            run_id="inexistant",
+            metadata={
+                "famille": "linéaire",
+                "cible_transformee": "brut",
+                "graine": 7,
+                "features": [],
+            },
+            decision={"promotion": True},
+            dataset={"version": "v", "hash_md5": "h"},
+            code={"git_sha": "sha"},
+        )
+
+
 def test_registry_requires_a_database_backend(mlflow_sqlite_uri: str) -> None:
     previous = mlflow.get_tracking_uri()
     mlflow.set_tracking_uri("/tmp/camrent-mlruns-not-a-db")
@@ -91,7 +129,7 @@ def test_registry_requires_a_database_backend(mlflow_sqlite_uri: str) -> None:
 
 
 def test_register_creates_a_version_and_sets_the_alias(
-    mlflow_sqlite_uri: str, ml_frame: pd.DataFrame
+    mlflow_sqlite_uri: str, ml_frame: pd.DataFrame, tmp_path
 ) -> None:
     results = {
         "meta": {
@@ -135,6 +173,7 @@ def test_register_creates_a_version_and_sets_the_alias(
         run_id=logged["retenu"], model=model, metadata=metadata
     )
 
+    pin = tmp_path / "champion.json"
     registered = registry.register(
         model_uri=model_uri,
         run_id=logged["retenu"],
@@ -142,14 +181,45 @@ def test_register_creates_a_version_and_sets_the_alias(
         decision={"promotion": True},
         dataset=dataset,
         code={"git_sha": "deadbeef"},
+        approved_by="admin",
+        pin_path=pin,
     )
     assert registered["etiquette"] == "rent-model-v1"
     assert registered["alias"] == "champion"
     assert registered["version"] == 1
+    assert registered["approuve_par"] == "admin"
+    assert registered["epingle"] == str(pin)
 
     client = mlflow.MlflowClient()
     version = client.get_model_version("rent-model", "1")
     assert version.tags["famille"] == "ensemble d'arbres (bagging)"
     assert version.tags["version_dataset"] == dataset["version"]
     assert version.tags["promu"] == "True"
+    assert version.tags["approuve_par"] == "admin"
+    assert version.tags["approuve_le"] != ""
     assert client.get_model_version_by_alias("rent-model", "champion").version == 1
+
+    # La version servie est épinglée dans un fichier versionné, sans secret.
+    pinned = registry.read_champion_pin(pin)
+    assert pinned["version"] == 1
+    assert pinned["etiquette"] == "rent-model-v1"
+    assert pinned["alias"] == "champion"
+    assert pinned["run_id"] == logged["retenu"]
+    assert pinned["approuve_par"] == "admin"
+    assert pinned["git_sha"] == "deadbeef"
+    assert pinned["dataset"]["hash_md5"] == dataset["hash_md5"]
+    assert "mot-de-passe" not in pin.read_text(encoding="utf-8")
+
+
+def test_read_champion_pin_raises_when_the_file_is_missing(tmp_path) -> None:
+    with pytest.raises(FileNotFoundError, match="introuvable"):
+        registry.read_champion_pin(tmp_path / "absent.json")
+
+
+def test_report_never_shows_an_absolute_path() -> None:
+    """Le rapport est versionné : un chemin absolu le rendrait non reproductible."""
+    assert registry_report.display_path(str(config.CHAMPION_PIN_PATH)) == (
+        "ml/models/champion.json"
+    )
+    assert registry_report.display_path("ml/models/champion.json") == "ml/models/champion.json"
+    assert registry_report.display_path("/tmp/ailleurs/champion.json") == "champion.json"

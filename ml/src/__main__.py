@@ -90,6 +90,19 @@ def build_parser() -> argparse.ArgumentParser:
     registry_cmd.add_argument(
         "--no-register", action="store_true", help="journaliser sans enregistrer de version"
     )
+    registry_cmd.add_argument(
+        "--confirm-promotion",
+        action="store_true",
+        help="approuver explicitement la promotion du modèle retenu (alias champion) ; "
+        "sans cette option, une règle de promotion satisfaite interrompt l'exécution",
+    )
+    registry_cmd.add_argument(
+        "--approved-by",
+        type=str,
+        default=None,
+        help="identité de l'administrateur qui approuve la promotion "
+        "(requis avec --confirm-promotion)",
+    )
     registry_cmd.add_argument("--verbose", action="store_true")
     return parser
 
@@ -162,6 +175,7 @@ def run_registry_command(
     include_lightgbm: bool,
     persist: bool,
     register: bool,
+    approved_by: str | None = None,
 ) -> int:
     from . import run_registry  # import local (MLflow chargé à la demande)
 
@@ -175,6 +189,7 @@ def run_registry_command(
             include_lightgbm=include_lightgbm,
             persist=persist,
             register=register,
+            approved_by=approved_by,
         )
     except (RuntimeError, ValueError, OSError, KeyError) as exc:
         print(f"[ERREUR] registre impossible : {exc}", file=sys.stderr)
@@ -187,10 +202,17 @@ def run_registry_command(
           f"({summary['dataset']['n_observations']} observations)")
     if summary.get("registered"):
         registered = summary["registered"]
+        approval = (
+            f", approuvé par {registered['approuve_par']}"
+            if registered.get("approuve_par")
+            else ""
+        )
         print(
             f"     modèle enregistré : {registered['etiquette']} "
-            f"(alias {registered['alias']}, promu {registered['promotion']})"
+            f"(alias {registered['alias']}, promu {registered['promotion']}{approval})"
         )
+        if registered.get("epingle"):
+            print(f"     version servie épinglée dans : {registered['epingle']}")
     else:
         print("     aucun modèle enregistré")
     print(f"     rapport : {report_path or 'docs/phase-7/registry-report.md'}")
@@ -255,6 +277,16 @@ def main(argv: list[str] | None = None) -> int:
             persist=not args.no_persist,
         )
     if args.command == "registry":
+        approved_by: str | None = None
+        if args.confirm_promotion:
+            if not (args.approved_by or "").strip():
+                print(
+                    "[ERREUR] `--confirm-promotion` exige `--approved-by <nom>` : "
+                    "la promotion doit être nominative (rôle administrateur).",
+                    file=sys.stderr,
+                )
+                return 1
+            approved_by = args.approved_by.strip()
         return run_registry_command(
             args.database_url,
             args.tracking_uri,
@@ -264,6 +296,7 @@ def main(argv: list[str] | None = None) -> int:
             include_lightgbm=not args.no_lightgbm,
             persist=not args.no_persist,
             register=not args.no_register,
+            approved_by=approved_by,
         )
     build_parser().print_help()
     return 1

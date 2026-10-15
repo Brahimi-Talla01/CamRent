@@ -26,7 +26,7 @@ Collecte des sources retenues en Phase 0, stockage brut **immuable** dans
 
 ## Vérifications effectuées (9 octobre 2026)
 
-- **Tests** : `18` tests unitaires, verts.
+- **Tests** : `17` tests unitaires, verts (collecte revérifiée le 2026-10-15 : 17 tests `test_ingestion_*`).
 - **Lint** : `ruff` sans erreur.
 - **Collectes réelles** :
   - `geloka` → **8** observations (baromètre agrégé) ;

@@ -49,6 +49,18 @@ Le produit n'est **pas** un simple formulaire branché sur un modèle ML : c'est
 - Suivi temporel des loyers, cartes de prix, détection de quartiers émergents
 - APIs de données immobilières, tableaux de bord
 
+### Extensions retenues, à structurer (décision du 2026-10-15)
+
+- **Back-office interne** — supervision des sources, des datasets, de la qualité, des jobs ML et du
+  registre des modèles. Priorité donnée à ses **fondations** (capacités gouvernées et
+  interrogeables) avant toute interface ; l'interface vient après les phases 08 et 09.
+- **Marketplace** — mise en relation entre un locataire et un annonceur. **Conservée dans le
+  périmètre du produit**, mais conditionnée : elle doit d'abord être cadrée (une annonce publiée par
+  un utilisateur et une observation importée d'une source externe restent des objets distincts, avec
+  comptes annonceurs, modération et gestion des annonces). Aucune implémentation n'est engagée.
+- **Conakry** — **chantier séparé** : devise, référentiel géographique, sources et vérification
+  légale locale à instruire avant toute donnée ou modèle.
+
 ## Variables initiales du MVP
 
 - ville
@@ -106,8 +118,26 @@ La cible représente le **prix demandé dans les annonces**, pas nécessairement
 
 > « Estimation basée sur les prix observés dans les annonces disponibles. »
 
+## Décisions de périmètre (2026-10-15)
+
+Issues de l'audit et du recadrage (détail : `context/plans/camrent-audit-and-realignment-plan.md`).
+
+- **Périmètre géographique** : Yaoundé et Douala. **Conakry** est traité comme un chantier séparé.
+- **Collecte** : on finalise le MVP avant toute nouvelle collecte (pas de surface, pas de dates pour
+  l'instant).
+- **Sémantique de la cible** : la cible reste le **loyer demandé** dans les annonces ; une colonne
+  `rent_semantics` (`asking_rent` / `unknown`) sera ajoutée au dataset ML pour rendre cette sémantique
+  explicite, sans renommer la cible existante.
+- **Prix censurés** : la cible et l'intervalle de prédiction seront adaptés, par une expérience
+  **mesurée**, au lieu d'exclure ou de pondérer sans mesure.
+- **Registre des modèles** : MLflow est conservé ; une promotion est **approuvée explicitement par un
+  administrateur**, et la version servie est épinglée dans un fichier versionné.
+- **CI** : les tests de données (`dbt build`) seront exécutés sur PostgreSQL en intégration continue.
+
 ## Documents de référence
 
+- `context/product/camrent-product-realignment.md`
+- `context/plans/camrent-audit-and-realignment-plan.md`
 - `assets/CamRent_Conception_Produit_et_Probleme_Data.md`
 - `assets/CamRent_Plan_Technique_Implementation_Architecture_Data_ML.md`
 - `assets/Data_Discovery_Report.md`

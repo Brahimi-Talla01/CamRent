@@ -38,6 +38,10 @@ eda/statistics.json
 # --- Artefacts ML ---
 ml/models/*
 !ml/models/.gitkeep
+# Exception : la version servie est épinglée dans un fichier **versionné**
+# (aucun secret, aucun binaire) — c'est le seul lien vérifiable depuis le dépôt
+# vers la version enregistrée dans MLflow.
+!ml/models/champion.json
 # Métriques régénérables des baselines (le livrable est le rapport .md)
 ml/artifacts/*
 !ml/artifacts/.gitkeep

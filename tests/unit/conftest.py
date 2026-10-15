@@ -11,9 +11,15 @@ tables MLflow est coûteuse, on ne la paie donc qu'une fois pour toute la suite.
 from __future__ import annotations
 
 import os
+import tempfile
 
 # Télémétrie MLflow coupée (vitesse et reproductibilité des tests).
 os.environ.setdefault("MLFLOW_DISABLE_TELEMETRY", "true")
+# Les artefacts des tests ne doivent pas s'écrire dans le dépôt : l'emplacement
+# épinglé par défaut est `ml/artifacts/mlflow` (voir ml/src/config.py).
+os.environ.setdefault(
+    "MLFLOW_ARTIFACT_LOCATION", tempfile.mkdtemp(prefix="camrent-mlflow-artifacts-")
+)
 
 import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402

@@ -52,7 +52,10 @@ python -m ml.src models --models-dir /tmp/models
 # Phase 7 — journalisation des runs + enregistrement du modèle retenu.
 # Le registre exige un backend base de données : une base `mlflow` dédiée est
 # dérivée de `DATABASE_URL` (créée une fois : `createdb ... mlflow`).
-python -m ml.src registry
+# La promotion est NOMINATIVE : elle exige l'approbation explicite d'un
+# administrateur. Sans elle, une règle de promotion satisfaite interrompt
+# l'exécution AVANT toute écriture (aucune version, aucun alias déplacé).
+python -m ml.src registry --confirm-promotion --approved-by <nom>
 python -m ml.src registry --tracking-uri sqlite:///mlflow.db   # backend local
 python -m ml.src registry --no-register                        # journaliser sans enregistrer
 ```
@@ -71,9 +74,20 @@ sans elle, la famille LightGBM est simplement retirée du zoo, l'installation es
 recommandée pour pouvoir comparer) et `mlflow` (Phase 7 — suivi et registre).
 Installer via `pip install -e '.[ml]'`.
 
-Le rapport versionné de la Phase 7 est `docs/phase-7/registry-report.md` ; le
+Le rapport versionné de la Phase 7 est `docs/phase-7/registry-report.md`. Le
 registre lui-même vit dans MLflow (base PostgreSQL `mlflow` ou backend SQLite de
-test), donc rien n'est versionné côté artefacts.
+test) : cet état n'est **pas** versionné. Deux éléments du dépôt le rendent donc
+vérifiable :
+
+- `ml/models/champion.json` — **versionné** : nom, version, `run_id`, empreinte du
+dataset, SHA Git et approbation de la version servie (écrit lors d'une promotion ;
+aucun secret dedans) ;
+- `MLFLOW_ARTIFACT_LOCATION` — emplacement **épinglé** des artefacts de run (par
+défaut `ml/artifacts/mlflow`, ignoré par git) au lieu du répertoire courant.
+
+La version de dataset journalisée par run est le hash de **tout** le contenu du mart
+(schéma et valeurs) : ajouter, retirer ou modifier une feature produit une nouvelle
+version, ce qui rend une comparaison de runs fiable.
 
 ## Principes appliqués
 

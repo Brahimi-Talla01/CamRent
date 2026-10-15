@@ -5,10 +5,13 @@ Enchaînement :
 1. reconstruire les résultats de la Phase 6 (même séparation, mêmes candidats) et
    sauvegarder le modèle retenu sur disque ;
 2. décrire la version du dataset (hash du contenu) et la version du code ;
-3. journaliser un run MLflow par candidat dans l'expérience `rent_prediction` ;
-4. attacher le modèle retenu à son run (modèle + intervalle + métadonnées) ;
-5. enregistrer une version `rent-model-vN` et appliquer la règle de promotion ;
-6. rendre le rapport markdown, entièrement dérivé du résumé.
+3. évaluer la règle de promotion **avant toute écriture** et exiger, si la règle est
+   satisfaite, une **approbation explicite** (`--confirm-promotion --approved-by <nom>`) ;
+4. journaliser un run MLflow par candidat dans l'expérience `rent_prediction` ;
+5. attacher le modèle retenu à son run (modèle + intervalle + métadonnées) ;
+6. enregistrer une version `rent-model-vN`, appliquer la règle de promotion et
+   **épingler** la version servie dans `ml/models/champion.json` ;
+7. rendre le rapport markdown, entièrement dérivé du résumé.
 
 Le résumé retourné ne contient que des valeurs sérialisables ; le modèle
 enregistré vit dans le registre MLflow (PostgreSQL), non versionné.
@@ -77,8 +80,15 @@ def run(
     include_lightgbm: bool = True,
     persist: bool = True,
     register: bool = True,
+    approved_by: str | None = None,
 ) -> dict[str, Any]:
-    """Exécute la Phase 7 de bout en bout et écrit le rapport."""
+    """Exécute la Phase 7 de bout en bout et écrit le rapport.
+
+    Args:
+        approved_by: identité de l'administrateur qui approuve la promotion. Sans
+            elle, une règle satisfaite interrompt l'exécution **avant** toute
+            écriture dans le registre (aucune version, aucun alias déplacé).
+    """
     frame = data.load_ml_dataset(database_url)
     results = run_models.build_results(
         frame,
@@ -88,6 +98,14 @@ def run(
     )
     dataset = tracking.dataset_version(frame)
     code = tracking.code_version()
+
+    # Gouvernance : la règle est évaluée avant toute écriture. Une règle satisfaite
+    # sans approbation explicite interrompt l'exécution, pour qu'aucune version ne
+    # soit enregistrée ni promue par inadvertance.
+    decision = registry.promotion_decision(results["selection"], results["seuil_reference"])
+    if register:
+        registry.require_promotion_approval(decision, approved_by=approved_by)
+
     uri = tracking.configure(tracking_uri, database_url)
     experiment_name = experiment or config.MLFLOW_EXPERIMENT
 
@@ -95,7 +113,6 @@ def run(
         results, dataset=dataset, tracking_uri=uri, experiment=experiment_name
     )
 
-    decision = registry.promotion_decision(results["selection"], results["seuil_reference"])
     registered: dict[str, Any] | None = None
     artifacts = results.get("artefacts", {})
     if persist and "modele" in artifacts:
@@ -116,6 +133,7 @@ def run(
                 decision=decision,
                 dataset=dataset,
                 code=code,
+                approved_by=approved_by,
             )
         if registered:
             tracking.tag_registered_model(

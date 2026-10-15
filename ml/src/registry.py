@@ -9,6 +9,9 @@ pas toutes les conditions de la règle.
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import mlflow
@@ -96,6 +99,28 @@ def promotion_decision(
     }
 
 
+def require_promotion_approval(
+    decision: dict[str, Any], *, approved_by: str | None = None
+) -> None:
+    """Refuse une promotion non approuvée explicitement.
+
+    La règle de promotion est évaluée par le code, mais elle ne décide pas seule :
+    un humain portant le rôle d'administrateur doit fournir son identité. Sans
+    approbation, aucune version ne devient servable — l'alias de référence n'est
+    jamais déplacé automatiquement.
+
+    Raises:
+        ValueError: la règle est satisfaite mais aucune approbation n'est fournie.
+    """
+    if decision.get("promotion") and not (approved_by or "").strip():
+        raise ValueError(
+            "Promotion refusée : la règle de promotion est satisfaite mais aucune "
+            "approbation explicite n'a été fournie. Relancer avec "
+            "`--confirm-promotion --approved-by <nom>` (rôle administrateur) ; "
+            "aucun alias de référence n'est déplacé automatiquement."
+        )
+
+
 def _registry_backend_available() -> None:
     """Le Model Registry exige un backend base de données (pas un file store)."""
     uri = mlflow.get_tracking_uri() or ""
@@ -116,19 +141,28 @@ def register(
     dataset: dict[str, Any],
     code: dict[str, Any],
     name: str | None = None,
+    approved_by: str | None = None,
+    pin_path: Path | None = None,
 ) -> dict[str, Any]:
     """Crée une version `rent-model-vN` et pose l'alias champion si promu.
 
+    La promotion exige une **approbation explicite** (`approved_by`) : une règle
+    satisfaite sans approbation lève une erreur, sans rien écrire dans le registre.
+    Lorsqu'une version est promue, la version servie est **épinglée** dans
+    `ml/models/champion.json` (fichier versionné).
+
     Returns:
         Description de la version enregistrée (nom, numéro, étiquette, alias,
-        décision de promotion).
+        décision de promotion, approbation, chemin d'épinglage).
     """
+    require_promotion_approval(decision, approved_by=approved_by)
     name = name or config.REGISTERED_MODEL_NAME
     _registry_backend_available()
     client = MlflowClient()
     version = mlflow.register_model(model_uri, name)
     number = str(version.version)
 
+    approuve_le = datetime.now(UTC).isoformat(timespec="seconds")
     tags = {
         "famille": str(metadata["famille"]),
         "cible_transformee": str(metadata["cible_transformee"]),
@@ -138,6 +172,8 @@ def register(
         "hash_dataset": str(dataset["hash_md5"]),
         "git_sha": str(code.get("git_sha")),
         "promu": str(decision["promotion"]),
+        "approuve_par": str(approved_by or ""),
+        "approuve_le": approuve_le if decision["promotion"] else "",
     }
     for key, value in tags.items():
         client.set_model_version_tag(name, number, key, value)
@@ -149,9 +185,25 @@ def register(
     client.update_model_version(name=name, version=number, description=description)
 
     alias = None
+    pinned: Path | None = None
     if decision["promotion"]:
         client.set_registered_model_alias(name, config.REGISTERED_MODEL_ALIAS, number)
         alias = config.REGISTERED_MODEL_ALIAS
+        pinned = write_champion_pin(
+            {
+                "name": name,
+                "version": int(version.version),
+                "etiquette": f"{name}-v{number}",
+                "alias": alias,
+                "run_id": run_id,
+                "model_uri": model_uri,
+                "approuve_par": approved_by,
+                "approuve_le": approuve_le,
+            },
+            dataset=dataset,
+            code=code,
+            path=pin_path,
+        )
 
     return {
         "name": name,
@@ -161,4 +213,53 @@ def register(
         "run_id": run_id,
         "model_uri": model_uri,
         "promotion": decision["promotion"],
+        "approuve_par": approved_by if decision["promotion"] else None,
+        "approuve_le": approuve_le if decision["promotion"] else None,
+        "epingle": str(pinned) if pinned else None,
     }
+
+
+def write_champion_pin(
+    registered: dict[str, Any],
+    *,
+    dataset: dict[str, Any],
+    code: dict[str, Any],
+    path: Path | None = None,
+) -> Path:
+    """Écrit le fichier **versionné** qui épingle la version servie.
+
+    C'est le seul lien vérifiable, depuis le dépôt, entre le code et la version
+    effectivement servie : le registre MLflow vit dans une base locale non
+    versionnée. Aucun secret n'y est écrit (pas d'URI de suivi, pas de mot de passe).
+    """
+    path = path or config.CHAMPION_PIN_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "pin_version": 1,
+        "nom": registered["name"],
+        "version": registered["version"],
+        "etiquette": registered["etiquette"],
+        "alias": registered["alias"],
+        "run_id": registered["run_id"],
+        "model_uri": registered["model_uri"],
+        "dataset": {
+            "source": dataset["source"],
+            "version": dataset["version"],
+            "hash_md5": dataset["hash_md5"],
+            "n_observations": dataset["n_observations"],
+        },
+        "git_sha": code.get("git_sha"),
+        "approuve_par": registered.get("approuve_par"),
+        "approuve_le": registered.get("approuve_le"),
+        "ecrit_le": datetime.now(UTC).isoformat(timespec="seconds"),
+    }
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return path
+
+
+def read_champion_pin(path: Path | None = None) -> dict[str, Any]:
+    """Relit la version épinglée (erreur explicite si le fichier est absent)."""
+    path = path or config.CHAMPION_PIN_PATH
+    if not Path(path).exists():
+        raise FileNotFoundError(f"Version épinglée introuvable : {path}.")
+    return json.loads(Path(path).read_text(encoding="utf-8"))

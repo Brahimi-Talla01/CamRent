@@ -85,7 +85,14 @@ MODEL_REPORT_PATH: Final[Path] = PROJECT_ROOT / "docs" / "phase-6" / "model-repo
 MODELS_DIR: Final[Path] = Path(
     os.environ.get("CAMRENT_MODELS_DIR", PROJECT_ROOT / "ml" / "models")
 )
+# Nom du **candidat retenu de la Phase 6** (artefact local, régénérable et ignoré
+# par git). Ce nom ne représente pas une version du registre : la version
+# effectivement servie est épinglée dans `CHAMPION_PIN_PATH`.
 MODEL_ARTIFACT_NAME: Final[str] = "rent_model_v1"
+# Fichier **versionné** qui épingle la version servie (nom, version, run, empreinte
+# du dataset, SHA Git, approbation). Sans lui, « quel modèle sert ? » ne serait pas
+# vérifiable depuis le dépôt.
+CHAMPION_PIN_PATH: Final[Path] = MODELS_DIR / "champion.json"
 
 # Fourchette de prédiction : niveau de confiance visé et effectif de validation
 # utilisé pour calibrer l'intervalle (split-conformal).
@@ -133,7 +140,11 @@ REGISTERED_MODEL_ALIAS: Final[str] = "champion"
 # (`mlflow`) depuis `DATABASE_URL` ; sinon on retombe sur un backend fichiers
 # local (rejeu hors-ligne, tests).
 MLFLOW_TRACKING_URI: Final[str | None] = os.environ.get("MLFLOW_TRACKING_URI")
-MLFLOW_ARTIFACT_LOCATION: Final[str | None] = os.environ.get("MLFLOW_ARTIFACT_LOCATION")
+# Emplacement des artefacts de run : **épinglé** par défaut, pour ne pas dépendre
+# du répertoire courant au moment de l'exécution (artefacts non versionnés).
+MLFLOW_ARTIFACT_LOCATION: Final[str] = os.environ.get("MLFLOW_ARTIFACT_LOCATION") or str(
+    PROJECT_ROOT / "ml" / "artifacts" / "mlflow"
+)
 MLFLOW_LOCAL_DIR: Final[Path] = Path(
     os.environ.get("CAMRENT_MLFLOW_DIR", PROJECT_ROOT / "ml" / "mlruns")
 )

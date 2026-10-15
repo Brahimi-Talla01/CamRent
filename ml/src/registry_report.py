@@ -7,9 +7,24 @@ rapport est donc régénérable à l'identique (hors horodatage).
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
+from . import config
 from .markdown import number, table
+
+
+def display_path(value: str) -> str:
+    """Chemin affichable dans un rapport **versionné** : jamais absolu.
+
+    Un chemin absolu dépendrait de la machine et ne serait donc pas reproductible
+    (le rapport doit rester relisible ailleurs).
+    """
+    path = Path(value)
+    try:
+        return str(path.relative_to(config.PROJECT_ROOT))
+    except ValueError:
+        return path.name if path.is_absolute() else str(path)
 
 
 def render_report(summary: dict[str, Any], *, generated_at: str) -> str:
@@ -39,7 +54,8 @@ def render_report(summary: dict[str, Any], *, generated_at: str) -> str:
         f"- **Runs journalisés :** {len(summary['runs'])} candidats de la Phase 6 "
         "(chaque famille × transformation de cible).",
         f"- **Dataset :** `{dataset['source']}` — {number(dataset['n_observations'])} "
-        f"observations, version `{dataset['version']}` (hash du contenu).",
+        f"observations, version `{dataset['version']}` (hash de tout le contenu : "
+        "schéma et valeurs).",
         "- **Version du code :** consignée dans chaque run (SHA Git + versions "
         f"logicielles, ex. Python {code['logiciel']['python']}, "
         f"scikit-learn {code['logiciel']['scikit_learn']}).",
@@ -79,6 +95,18 @@ def render_report(summary: dict[str, Any], *, generated_at: str) -> str:
             + (f"`{registered['alias']}`" if registered["alias"] else "aucun (non promu)"),
             f"- **Run source :** `{registered['run_id']}`.",
             f"- **Promu :** {registered['promotion']}.",
+            "- **Approbation :** "
+            + (
+                f"{registered['approuve_par']} ({registered['approuve_le']})"
+                if registered.get("approuve_par")
+                else "aucune (non promu)"
+            ),
+            "- **Version servie épinglée :** "
+            + (
+                f"`{display_path(registered['epingle'])}`"
+                if registered.get("epingle")
+                else "aucune"
+            ),
             "",
         ]
     else:
@@ -88,7 +116,9 @@ def render_report(summary: dict[str, Any], *, generated_at: str) -> str:
         "## Règle de promotion",
         "",
         "Un modèle est promu (alias `champion`) uniquement si **toutes** les "
-        "conditions suivantes sont satisfaites :",
+        "conditions suivantes sont satisfaites **et** si la promotion est "
+        "**approuvée explicitement** par un administrateur "
+        "(`--confirm-promotion --approved-by <nom>`) :",
         "",
     ]
     for condition in decision["conditions"]:
@@ -96,7 +126,10 @@ def render_report(summary: dict[str, Any], *, generated_at: str) -> str:
         lines.append(f"- {marker} **{condition['id']}** — {condition['detail']}.")
     lines += [
         "",
-        f"**Décision :** {'promu' if decision['promotion'] else 'non promu'}.",
+        f"**Décision automatique :** {'promouvable' if decision['promotion'] else 'non promu'}.",
+        "",
+        "L'alias de référence n'est jamais déplacé automatiquement : sans approbation "
+        "nominative, aucune version ne devient servable.",
         "",
         decision["regle"]["portee"],
         "",
@@ -111,7 +144,8 @@ def render_report(summary: dict[str, Any], *, generated_at: str) -> str:
         "export DATABASE_URL=postgresql://camrent:<mot-de-passe>@localhost:5433/camrent",
         "# base de registre dédiée (une fois) :",
         "#   createdb -h localhost -p 5433 -U camrent mlflow",
-        "python -m ml.src registry",
+        "# la promotion est nominative (rôle administrateur) :",
+        "python -m ml.src registry --confirm-promotion --approved-by <nom>",
         "```",
         "",
     ]

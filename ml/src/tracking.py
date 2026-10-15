@@ -136,26 +136,39 @@ def code_version() -> dict[str, Any]:
 def dataset_version(frame: pd.DataFrame) -> dict[str, Any]:
     """Identifiant de version du dataset : source, volume et hash du contenu.
 
-    DVC / lakeFS ne sont pas introduits : les volumes du MVP (quelques milliers
-    de lignes) ne les justifient pas ; un hash documenté suffit à savoir sur
-    quelle version de données un modèle a été entraîné.
+    Le hash couvre **tout le contenu du mart** : les noms de colonnes (donc le
+    schéma) et toutes les valeurs, ligne par ligne. Ajouter, retirer ou modifier une
+    colonne — y compris une feature — produit donc une nouvelle version. Sans cela,
+    un run pourrait porter une version identique alors que ses données d'entrée ont
+    changé, ce qui donnerait une fausse garantie de reproductibilité.
+
+    DVC / lakeFS ne sont pas introduits : les volumes du MVP (quelques milliers de
+    lignes) ne les justifient pas ; un hash documenté suffit à savoir sur quelle
+    version de données un modèle a été entraîné.
     """
-    ordered = frame.sort_values("listing_key")
+    columns = sorted(str(column) for column in frame.columns)
+    ordered = frame.sort_values("listing_key")[columns]
+    # Conversion explicite valeur par valeur : `astype(str)` dépend de la version de
+    # pandas (dtype `str` avec valeurs manquantes conservées en `NA` en pandas 3), ce
+    # qui rendrait le hash fragile. `pd.isna` gère les manquants de façon uniforme.
     payload = "\n".join(
-        f"{key}|{value}"
-        for key, value in zip(
-            ordered["listing_key"].astype(str), ordered[config.TARGET], strict=False
-        )
+        ["|".join(columns)]
+        + [
+            "|".join("" if pd.isna(value) else str(value) for value in row)
+            for row in ordered.itertuples(index=False, name=None)
+        ]
     )
     digest = hashlib.md5(payload.encode("utf-8")).hexdigest()
     return {
         "source": config.SOURCE_REFERENCE,
         "n_observations": int(len(frame)),
+        "n_colonnes": len(columns),
+        "colonnes": columns,
         "hash_md5": digest,
         "version": f"{config.SOURCE_TABLE}@{digest[:12]}",
         "strategie": (
-            "identifiant documenté (hash du contenu) ; DVC/lakeFS étudiés mais non "
-            "retenus au MVP (volumes non justifiants)."
+            "identifiant documenté (hash de tout le contenu : schéma et valeurs) ; "
+            "DVC/lakeFS étudiés mais non retenus au MVP (volumes non justifiants)."
         ),
     }
 

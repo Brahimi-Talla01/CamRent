@@ -24,6 +24,9 @@ Phase 9  Frontend
 Phase 10 Orchestration
 Phase 11 Observabilité
 Phase 12 Production
+Phase 13 Back-office — fondations (après 08 et 09)
+Phase 14 Back-office — rapports et observabilité
+Phase 15 Marketplace — découverte et cadrage (phase de décision)
 ```
 
 ## Lots de réalignement (décision du 2026-10-15)

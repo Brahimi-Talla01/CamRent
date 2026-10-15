@@ -212,8 +212,9 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Lot E — prix censurés** : adapter la cible et l'intervalle, par une expérience **mesurée**, après
   stabilisation du registre.
 - **Puis** : Phase 9 (09a estimation publique / 09b administration, `ui-context.md` figé avant code),
-  specs 13/14 du back-office (décision 7 : **après** 08 et 09), spec 15 marketplace (phase de
-  décision), Phases 10/11/12 selon besoin mesuré, Conakry (chantier séparé, décision 10).
+  specs 13/14 du back-office (décision 7 : implémentation **après** 08 et 09 ; specs de cadrage créées
+  le 2026-10-15), spec 15 marketplace (phase de décision — spec de cadrage créée, aucun code engagé),
+  Phases 10/11/12 selon besoin mesuré, Conakry (chantier séparé, décision 10).
 - Hygiène du registre (rétention des runs) à traiter dans un lot ultérieur (P2 partiel).
 - Tâche ouverte : pondération/explicitation des prix bornés et des républications dans
   l'entraînement (rejoint le lot E).

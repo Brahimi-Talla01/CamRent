@@ -14,7 +14,7 @@ Ne jamais commencer à coder avant d'avoir fait ces étapes, dans cet ordre :
 2. Lire `context/ai-workflow-rules.md` — règles de workflow et de périmètre.
 3. Lire `context/project-overview.md` et `context/architecture-context.md` — produit, architecture, invariants.
 4. Lire `context/code-standards.md` (+ `context/ui-context.md` si la tâche touche l'interface).
-5. Lire la **spec de la phase concernée** dans `context/feature-specs/` (00 → 12).
+5. Lire la **spec de la phase concernée** dans `context/feature-specs/` (00 → 15).
 6. Lire `context/progress-tracker.md` — état **réel** d'avancement et points ouverts.
 7. Lire `context/product/camrent-product-realignment.md` (recadrage produit) et le plan de
    réalignement validé `context/plans/camrent-audit-and-realignment-plan.md` (décisions §9, lots §10,
@@ -27,7 +27,7 @@ Ne jamais commencer à coder avant d'avoir fait ces étapes, dans cet ordre :
 
 ## 2. Périmètre et ordre des phases
 
-- Travailler sur **une phase à la fois**, dans l'ordre `00 → 12`.
+- Travailler sur **une phase à la fois**, dans l'ordre `00 → 15`.
 - Préférer de **petits incréments vérifiables** à de grands changements spéculatifs.
 - Ne pas mélanger plusieurs responsabilités dans une même étape (UI + pipeline, data + API…).
 - Si un changement ne peut pas être vérifié de bout en bout rapidement, **découper**.
@@ -112,7 +112,7 @@ un raw immuable et de permettre le rejeu des transformations.
 | `context/architecture-context.md` | Stack, frontières, stockage, invariants    |
 | `context/code-standards.md`       | Conventions de code                        |
 | `context/ui-context.md`           | Contexte interface (provisoire)            |
-| `context/feature-specs/`          | Une spec par phase (00 → 12)               |
+| `context/feature-specs/`          | Une spec par phase (00 → 15)               |
 | `context/progress-tracker.md`     | État d'avancement réel                     |
 | `context/product/camrent-product-realignment.md` | Recadrage produit (vision, périmètre, décisions) |
 | `context/plans/camrent-audit-and-realignment-plan.md` | Audit, décisions validées (§9), ordre des lots (§10), suivi d'exécution (§14) |

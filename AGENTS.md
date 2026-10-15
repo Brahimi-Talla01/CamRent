@@ -16,10 +16,14 @@ Ne jamais commencer à coder avant d'avoir fait ces étapes, dans cet ordre :
 4. Lire `context/code-standards.md` (+ `context/ui-context.md` si la tâche touche l'interface).
 5. Lire la **spec de la phase concernée** dans `context/feature-specs/` (00 → 12).
 6. Lire `context/progress-tracker.md` — état **réel** d'avancement et points ouverts.
-7. Vérifier que la tâche ne viole aucun **invariant** de `architecture-context.md`.
-8. Si l'exigence est ambiguë ou absente → la résoudre d'abord dans le fichier de contexte concerné,
+7. Lire `context/product/camrent-product-realignment.md` (recadrage produit) et le plan de
+   réalignement validé `context/plans/camrent-audit-and-realignment-plan.md` (décisions §9, lots §10,
+   suivi §14) — les décisions de périmètre et d'ordonnancement de ces documents priment sur toute
+   supposition.
+8. Vérifier que la tâche ne viole aucun **invariant** de `architecture-context.md`.
+9. Si l'exigence est ambiguë ou absente → la résoudre d'abord dans le fichier de contexte concerné,
    ou l'inscrire comme point ouvert dans `progress-tracker.md`. **Ne jamais inventer de comportement.**
-9. **Afficher le plan** avant de modifier (voir §4).
+10. **Afficher le plan** avant de modifier (voir §4).
 
 ## 2. Périmètre et ordre des phases
 
@@ -110,3 +114,5 @@ un raw immuable et de permettre le rejeu des transformations.
 | `context/ui-context.md`           | Contexte interface (provisoire)            |
 | `context/feature-specs/`          | Une spec par phase (00 → 12)               |
 | `context/progress-tracker.md`     | État d'avancement réel                     |
+| `context/product/camrent-product-realignment.md` | Recadrage produit (vision, périmètre, décisions) |
+| `context/plans/camrent-audit-and-realignment-plan.md` | Audit, décisions validées (§9), ordre des lots (§10), suivi d'exécution (§14) |

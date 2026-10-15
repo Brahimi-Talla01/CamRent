@@ -78,6 +78,23 @@ camrent/
 - `tests/` — tests unitaires, d'intégration, de données, end-to-end.
 - `infrastructure/` — Docker, configuration de déploiement.
 
+## Sous-systèmes fonctionnels (frontières)
+
+Les frontières ci-dessous **n'imposent pas des microservices** : une application modulaire, avec des
+workers pour les tâches longues, suffit au MVP.
+
+| Sous-système | Responsabilité | Frontière |
+| --- | --- | --- |
+| **A — Data Platform** | collecte, conservation, qualité, transformations, datasets | ne publie pas d'estimation ; n'expose pas d'interface publique |
+| **B — Back-office** | supervision interne : sources, datasets, qualité, jobs, registre des modèles, audit | **ne simule jamais une capacité absente du backend** ; accès réservé aux rôles internes (`admin` au départ) |
+| **C — Estimation** | estimation indicative du loyer mensuel demandé et données de marché | ne s'entraîne pas en ligne ; sert uniquement une version **enregistrée et approuvée** |
+| **D — Marketplace** (conditionnelle) | mise en relation locataire / annonceur | une annonce publiée et une observation importée restent des objets **distincts** |
+| **E — Services communs** | authentification, rôles, audit, tâches asynchrones, observabilité | API interne et API publique ont des autorisations distinctes |
+
+Règle d'ordonnancement : les **fondations** du back-office (capacités gouvernées et interrogeables) se
+construisent avec les fonctions qu'elles pilotent ; son **interface** (specs 13/14) vient **après** les
+phases 08 et 09.
+
 ## Architecture des données (Bronze / Silver / Gold)
 
 - **Bronze** — données brutes telles que collectées, peu ou pas transformées. Ex : `price = "180 000 FCFA"`, `location = "Bonamoussadi"`.
@@ -111,6 +128,24 @@ Le mode d'exécution du MVP est **batch** (ex. tous les jours). Le streaming n'e
 - **API de marché** : `GET /api/v1/market/cities`, `/market/neighborhoods`, `/market/prices`.
 - **API de comparaison** : `POST /api/v1/comparisons`.
 - Le backend ne fait pas de travail ML long : il appelle le modèle et/ou les tables Gold.
+
+## Gouvernance du registre de modèles
+
+Décisions du 2026-10-15 (audit et recadrage) :
+
+- **MLflow est conservé** (suivi et registre) ; le registre vit dans une base PostgreSQL **dédiée**
+  (`MLFLOW_DATABASE_NAME`, dérivée de `DATABASE_URL`), séparée de la base applicative.
+- **Aucun modèle n'est servable sans être enregistré** : le serving lit une **version épinglée**
+  (`models:/<modèle>/<version>`), jamais un artefact local implicite.
+- **Promotion explicite** : la règle de promotion est évaluée automatiquement, mais l'attribution de
+  l'alias de référence (`champion`) exige une **approbation explicite** d'un **administrateur**
+  (rôle `admin`) ; l'approbateur et la date sont consignés dans le run et dans la version.
+- **Version servie épinglée dans le dépôt** : le fichier **versionné** `ml/models/champion.json`
+  consigne le nom, la version, le `run_id`, l'empreinte du dataset, le SHA Git et l'approbation.
+- **Artefacts de runs** : stockés **localement et non versionnés**, dans un emplacement **épinglé**
+  (`MLFLOW_ARTIFACT_LOCATION`, par défaut `ml/artifacts/mlflow`) et non dans le répertoire courant.
+- **Retour arrière** : changer de version servie passe par la même voie (approbation explicite) ;
+  aucune suppression de version n'est automatique.
 
 ## Décisions techniques provisoires
 

@@ -57,6 +57,19 @@ Objectif : rendre CamRent déployable, testé, sécurisé et maintenable.
    - sauvegardes ;
    - logs sans informations sensibles.
 
+7. **Sauvegardes et restauration** — sauvegarde régulière de la base applicative et de la base
+   de registre `mlflow` ; test périodique de restauration.
+
+8. **Retour arrière du modèle** — la version servie étant épinglée (`ml/models/champion.json`),
+   un retour arrière passe par une nouvelle promotion **approuvée**, jamais par un remplacement
+   silencieux.
+
+9. **Runbooks** — procédures écrites : collecte ratée, qualité dégradée, ré-entraînement,
+   restauration, rotation de secrets.
+
+10. **Environnements de transformation séparés** — schémas dbt distincts `dev` / `prod`
+    (opération non destructive, sans migration de données — plan de réalignement, P8).
+
 ## Dependencies
 
 - Docker / docker-compose.
@@ -76,4 +89,8 @@ Objectif : rendre CamRent déployable, testé, sécurisé et maintenable.
 - La CI exécute lint, tests unitaires, tests de données, tests d'intégration, build.
 - Le déploiement frontend / backend / base / storage / modèle fonctionne.
 - HTTPS, secrets, sauvegardes et logs non sensibles sont en place.
+- Les sauvegardes ont été restaurées au moins une fois (preuve) et le retour arrière du modèle
+  a été vérifié (promotion approuvée d'une version antérieure).
+- Des runbooks écrits existent pour les incidents courants.
+- Les schémas dbt `dev` et `prod` sont séparés.
 - La documentation permet à un autre développeur de comprendre et relancer le système.

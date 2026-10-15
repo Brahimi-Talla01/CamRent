@@ -44,6 +44,16 @@ et si le modèle perd en performance.
 
 6. Outils : dbt tests + Pandera ou Great Expectations (choix définitif selon l'implémentation).
 
+7. **Qualité des données en continu** — consommer la table de qualité du lot B (motifs de
+   rejet, quarantaine, volumes) : taux de rejet par source et par motif, comparaison aux lots
+   précédents.
+
+8. **Observabilité des jobs ML** — statut, durée et issue des entraînements (Phase 8b / Phase 13) ;
+   comparaison des métriques entre deux entraînements.
+
+9. **Audit** — les actions sensibles (promotion de modèle, lancement de job, activation de
+   source) sont journalisées et consultables (services communs E, Phase 13/14).
+
 ## Dependencies
 
 - Pipelines (Phases 1-4) et modèle en production (Phases 6-8).
@@ -61,3 +71,5 @@ et si le modèle perd en performance.
 - La détection de dérive des données fonctionne et distingue les causes possibles.
 - Le suivi du modèle (features, prédictions, performance par segment, drift) est en place.
 - Les alertes sont configurées avec des seuils justifiés.
+- Les taux de rejet et leurs motifs sont suivis dans le temps (table de qualité du lot B).
+- Les actions sensibles sont journalisées et consultables.

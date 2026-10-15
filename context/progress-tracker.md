@@ -196,6 +196,13 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - tests : `tests/unit/test_ml_{tracking,registry}.py` étendus (**7 nouveaux tests**) + `tests/unit/conftest.py` (artefacts de test isolés) ; suite complète **161 réussis, 1 ignoré** (le skip `pyarrow` préexistant) ; `ruff` 0 erreur ; vérifié en CLI : refus exit 1 sans approbation (2 versions inchangées, aucun pin créé), puis promotion `rent-model-v3` (alias `champion` → v3, tags d'approbation, `champion.json` écrit).
   - **Reste ouvert (P2 partiel, plan §7.5)** : politique de rétention des runs — l'expérience `rent_prediction` compte 84 runs sans politique d'hygiène.
 
+- **Harmonisation documentaire face au plan (2026-10-15)** — revue de cohérence de tous les documents de suivi (`context/`, `docs/`, READMEs) contre le plan validé, corrections validées par le porteur du projet :
+  - specs `06`/`08`/`09` alignées sur les features réellement disponibles (payload API et formulaire sans `area_m2`/`parking`/`gated`) et le découpage 08a/08b puis 09a/09b ;
+  - `project-overview.md` : variables MVP séparées (disponibles aujourd'hui / hors périmètre tant que non collectées) ;
+  - compléments demandés par le plan sur les specs `00` (reproduction partielle), `01` (provenance : empreinte de contenu, version de connecteur), `02` (rejets en base, `rent_semantics`, bornes `bathrooms`, drapeaux à trois états), `04` (sémantique de cible, table de qualité), `11` (qualité en continu, jobs ML, audit), `12` (sauvegardes, retour arrière du modèle, runbooks, schémas dev/prod) ;
+  - `ui-context.md` (séparation public / administration) et `code-standards.md` (`rent_semantics`) ;
+  - note de décision 4 (« adapter la cible et l'intervalle », lot E) ajoutée dans `docs/phase-2/README.md`, `docs/phase-5/README.md`, `docs/phase-6/README.md` et `pipelines/README.md`.
+
 ## In Progress
 
 - **Aucun lot en cours.** Le lot A2 est terminé et vérifié (2026-10-15) ; ses changements (et ceux du lot A1) sont **non commités** sur la branche `chore/audit-realignement`.

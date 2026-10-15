@@ -68,6 +68,8 @@
 
 ## Nommage
 
-- Unité monétaire : FCFA (XAF). La cible s'appelle `rent_price`.
+- Unité monétaire : FCFA (XAF). La cible s'appelle `rent_price` — un loyer **demandé** dans
+  une annonce ; sa sémantique est explicite via `rent_semantics` (`asking_rent` / `unknown`,
+  décision 2026-10-15).
 - Quartiers : toujours normaliser (casse, accents, « Quartier - Ville ») avant comparaison.
 - Colonnes en `snake_case`, en anglais pour le dataset ML (`city`, `neighborhood`, `property_type`, `bedrooms`, `bathrooms`, `area_m2`, `furnished`, `parking`, `gated`, `rent_price`).

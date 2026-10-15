@@ -106,3 +106,6 @@ complexe n'est construit ici.
   (contrôle à reprendre côté Phase 2).
 - Stratégie à figer en Phase 6 : pondération/exclusion explicite des prix bornés
   et des républications (les drapeaux sont exposés dans `mart_ml_dataset`).
+
+  > Décision (2026-10-15, plan de réalignement) : **adapter la cible et l'intervalle** par une
+  > expérience mesurée (lot E, décision 4) — plutôt que pondérer ou exclure.

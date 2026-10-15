@@ -37,6 +37,11 @@ sans les altérer, avec leurs métadonnées et premières validations.
 5. Rendre la collecte **idempotente** et rejouable : relancer une collecte ne doit pas corrompre
    les données existantes.
 
+6. **Provenance renforcée** (extension issue de l'audit — plan §5/§7.7) : par lot, consigner la
+   **version du connecteur**, une **empreinte de contenu** (hash), le statut de validation et
+   l'historique des exécutions — matière première du module « Qualité » (Phase 13) et de
+   l'observabilité (Phase 11).
+
 ## Dependencies
 
 - Python (requests / httpx, parsing HTML ou JSON selon la source).
@@ -53,6 +58,8 @@ sans les altérer, avec leurs métadonnées et premières validations.
 
 - Les données brutes d'au moins une collecte complète sont présentes dans `data/raw/`.
 - Les métadonnées de collecte existent pour chaque lot.
+- Les métadonnées permettent de retracer, par lot, l'empreinte de contenu et la version du
+  connecteur (extension de provenance).
 - Les validations Bronze passent (présence, volume, format, fraîcheur).
 - Le Raw dataset v1 est produit et immuable.
 - Aucune source sans vérification légale n'est collectée.

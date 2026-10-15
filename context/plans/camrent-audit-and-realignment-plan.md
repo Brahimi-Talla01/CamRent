@@ -660,6 +660,10 @@ l'audit. Détail des changements et vérifications dans `context/progress-tracke
 | **Lot E** | À faire | Prix censurés : adapter la cible et l'intervalle par une expérience **mesurée** (décision 4). |
 | **Lots suivants** | À planifier | Implémentation des specs 13/14 (back-office, décision 7 : après 08 et 09 — specs de cadrage créées le 2026-10-15), cadrage puis décision sur la 15 (marketplace), Phases 10/11/12 selon besoin mesuré, Conakry (décision 10 : séparé). |
 
-Aucun commit n'a été produit pour les lots A1 et A2 à la date de cette mise à jour : les
-changements vivent sur la branche `chore/audit-realignement` (non pushée), conformément à la
-règle « pas de push sans demande » (AGENTS.md §8).
+Les lots A1, A2 et le reste du lot 0 ont été fusionnés via la PR #33 (squash `a168bef`,
+2026-10-15). Le même jour, une **passe d'harmonisation documentaire** (validée par le porteur du
+projet) a aligné les specs 00-12, `project-overview.md`, `ui-context.md`, `code-standards.md` et
+les rapports de phases sur les décisions du §9 — payload API et formulaire sur les champs
+réellement disponibles, découpages 08a/08b et 09a/09b, compléments demandés par le §5 (specs 00,
+01, 02, 04, 11, 12), notes de la décision 4 dans les suites ouvertes des phases 2, 5 et 6 ; détail
+dans `context/progress-tracker.md`.

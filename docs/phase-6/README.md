@@ -187,6 +187,9 @@ python -m ml.src models      # Phase 6
 - Figer la stratégie vis-à-vis des **prix bornés et des républications** (les
   drapeaux sont exposés dans `mart_ml_dataset`) : pondération explicite plutôt
   qu'exclusion silencieuse.
+
+  > Décision (2026-10-15, plan de réalignement) : **adapter la cible et l'intervalle** par une
+  > expérience mesurée (lot E, décision 4) — plutôt que pondérer ou exclure.
 - Étendre l'évaluation aux **scénarios de sensibilité de la Phase 5**
   (`hors_republications`, `prix_exacts_sans_aberration`) pour mesurer à quel point
   le gain tient à des annonces dupliquées.

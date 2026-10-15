@@ -63,17 +63,24 @@ Le produit n'est **pas** un simple formulaire branché sur un modèle ML : c'est
 
 ## Variables initiales du MVP
 
+**Disponibles aujourd'hui** dans les données (features du modèle et champs de l'API) :
+
 - ville
 - quartier
 - type de logement
 - nombre de chambres
 - nombre de salles de bain
-- superficie, si suffisamment disponible
+- **cible : `rent_price`** — loyer **demandé** dans l'annonce ; sa sémantique est explicite
+  via `rent_semantics` (`asking_rent` / `unknown`, décision 9)
+
+**Souhaitées mais absentes des sources** — hors périmètre tant que la décision 6
+(finaliser le MVP d'abord, sans nouvelle collecte) ne les autorise pas :
+
+- superficie
 - meublé / non meublé
 - parking
 - barrière
 - quelques équipements importants
-- **cible : `rent_price`**
 
 ## Hors périmètre (MVP)
 

@@ -6,6 +6,11 @@ Objectif : **prouver que le problème Data est correctement défini et que les d
 permettent de construire une estimation utile.** Aucune architecture complexe ne doit être
 considérée comme définitive avant cette phase.
 
+> **Note de reproduction (2026-10-15)** : l'échantillon de `data/samples/` n'est pas
+> versionné (jeu tiers sans licence) — la reproduction hors dépôt est **partielle**
+> (plan de réalignement §5, P1). Le profiling, les rapports et le script de profiling
+> sont versionnés et rejouables.
+
 ## Implementation
 
 1. Consolider le **Data Discovery Report** (`assets/Data_Discovery_Report.md`) et vérifier qu'il couvre

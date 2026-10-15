@@ -49,6 +49,21 @@ Raw immuable, sans jamais perdre l'origine d'une valeur.
 9. Écrire le **Silver dataset** (Parquet / tables staging) dans `data/processed/` ou en base selon
    la décision de la Phase 4.
 
+10. **Motifs de rejet en base** (lot B du plan de réalignement) : charger la quarantaine et les
+    métadonnées de lot dans PostgreSQL et exposer une **table de qualité** (motifs de rejet
+    agrégés, volumes) — support du module « Qualité » du back-office (Phase 13).
+
+11. **Sémantique de cible** (décision 9) : documenter que `rent_price` est un loyer **demandé**
+    dans l'annonce, via une colonne `rent_semantics` (`asking_rent` / `unknown`), sans renommer
+    la cible.
+
+12. **Bornes** : contrôler `bathrooms` (une valeur 80 est constatée dans le Silver sans être
+    signalée) et documenter le traitement des prix extrêmes (signalés, jamais supprimés).
+
+13. **Drapeaux à trois états** : distinguer `false` (vérifié, absent), `true` (présent) et
+    `unknown` (non vérifiable) pour les équipements (`furnished`, `parking`, `gated`) — ne jamais
+    conclure une absence d'un simple manque d'information.
+
 ## Dependencies
 
 - pandas (ou Polars) pour la transformation Python.
@@ -70,3 +85,5 @@ Raw immuable, sans jamais perdre l'origine d'une valeur.
 - Les doublons sont traités et documentés.
 - Les données invalides sont en quarantine, pas supprimées.
 - Un rapport de nettoyage documente chaque règle appliquée et son volume d'impact.
+- La quarantaine et les motifs de rejet sont interrogeables en base (table de qualité).
+- `rent_semantics` documente la sémantique de la cible dans le dataset.

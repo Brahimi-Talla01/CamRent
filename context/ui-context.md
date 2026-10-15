@@ -47,6 +47,14 @@ Fourchette     130 000 – 190 000 FCFA
 Observations   248
 ```
 
+## Public vs administration (découpage 09a / 09b)
+
+Le parcours ci-dessus est **public** (Phase **09a**). L'interface d'**administration**
+(Phase **09b**, fondée sur `feature-specs/13-backoffice-foundations.md` et
+`14-backoffice-reporting-observability.md`) suit d'autres règles : densité d'information
+acceptée, actions sensibles confirmées et journalisées, aucun écran qui simule une capacité
+absente du backend. Le thème peut être commun, mais il reste **à figé** (voir plus bas).
+
 ## À définir en Phase 9
 
 - Palette de couleurs (variables CSS / tokens).

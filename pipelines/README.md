@@ -83,6 +83,9 @@ pipelines/
   ambigus ou non vérifiables, volontairement non mappés.
 - Le **prix de Koutchoumi** est très souvent **borné** (2 564 lignes `price_is_bound`) :
   utilisable pour la tendance, à exclure ou pondérer pour l'entraînement (Phases 5-6).
+
+  > Décision (2026-10-15, plan de réalignement) : **adapter la cible et l'intervalle** par une
+  > expérience mesurée (lot E, décision 4) — plutôt que pondérer ou exclure.
 - La **surface** reste absente des sources collectées.
 - `write_outputs` requiert `pandas` + `pyarrow` (non présents dans le sandbox de
   développement ; couvert par les tests en CI).

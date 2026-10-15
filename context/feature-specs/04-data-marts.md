@@ -44,6 +44,13 @@ l'API et le ML.
 6. Définir le **grain** de chaque table et documenter chaque dataset important (Data Catalog) :
    description, grain, source, fréquence, owner, sensibilité, qualité.
 
+7. **Sémantique de cible** (décision 9) : `mart_ml_dataset` expose `rent_semantics`
+   (`asking_rent` / `unknown`) ; la cible `target_rent_price` n'est pas renommée.
+
+8. **Qualité en base** (lot B) : quarantaine et métadonnées de lot chargées dans `landing`, avec
+   une table de qualité agrégant les motifs de rejet — support de la Phase 11 et du module
+   « Qualité » (Phase 13).
+
 ## Dependencies
 
 - PostgreSQL (+ PostGIS si les colonnes géographiques sont introduites).
@@ -61,6 +68,6 @@ l'API et le ML.
 - Les tables de faits/dimensions existent en base et sont alimentées.
 - Les marts sont construits via dbt et versionnés dans `dbt/`.
 - Les tests dbt passent sur les modèles critiques.
-- `mart_ml_dataset` contient les features du MVP + `rent_price`.
+- `mart_ml_dataset` contient les features du MVP + `rent_price` + `rent_semantics`.
 - Chaque dataset important est documenté (grain, source, fréquence, owner, sensibilité).
 - Le lineage est traçable de la source au mart.

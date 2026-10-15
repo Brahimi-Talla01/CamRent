@@ -6,6 +6,10 @@ Objectif : tester progressivement des modèles de régression et retenir celui q
 compromis précision / robustesse / interprétabilité / coût / maintenance — **en battant la baseline**
 de la Phase 5.
 
+> **Statut (2026-10-15)** : corrigée après l'audit (plan §5, P6) — les features listées
+> ci-dessous reflètent ce qui est **réellement collecté**, contrairement à la version
+> initiale de la spec qui exigeait des colonnes absentes du Silver.
+
 ## Implementation
 
 1. Tester les modèles dans l'ordre recommandé :
@@ -20,10 +24,15 @@ de la Phase 5.
 
 2. **Feature engineering** (`ml/src/`) :
 
-   - features directes : `bedrooms`, `bathrooms`, `area_m2`, `parking`, `gated` ;
-   - features géographiques : `neighborhood`, `latitude`, `longitude`, `distance_to_center` ;
-   - features dérivées : `property_age` (et **pas** `rent_per_m2`) ;
-   - encodage des catégorielles, gestion contrôlée des manquants (surface).
+   - features directes disponibles : `city`, `neighborhood`, `property_type`, `bedrooms`,
+     `bathrooms` ;
+   - features dérivées sans leakage : `total_pieces`, `logements_dans_quartier`
+     (profondeur de marché, comptée **sur l'entraînement uniquement**) ;
+   - **jamais** `rent_per_m2` ni aucune feature dérivée de la cible ;
+   - **indisponibles au MVP** (décision 2026-10-15 : finaliser d'abord, sans nouvelle
+     collecte) : `area_m2`, `parking`, `gated`, `furnished`, `latitude`, `longitude`,
+     `distance_to_center`, `property_age` — la précision est bornée par l'information
+     collectée, pas par le choix du modèle.
 
 3. Comparer systématiquement :
 
@@ -41,6 +50,12 @@ de la Phase 5.
    localisation, chambres, superficie, parking, standing).
 
 6. Sauvegarder le modèle retenu et ses artefacts dans `ml/models/`.
+
+7. **Prix censurés** : la grande majorité des observations porte une borne inférieure de
+   prix (« à partir de »). Toute mesure de gain doit être confrontée aux scénarios de
+   sensibilité ; la stratégie retenue (décision 4, 2026-10-15) est d'**adapter la cible et
+   l'intervalle** par une expérience mesurée (lot E du plan de réalignement), pas
+   d'exclure ou de pondérer à l'aveugle.
 
 ## Dependencies
 

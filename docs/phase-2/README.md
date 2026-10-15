@@ -64,5 +64,8 @@ Voir `context/feature-specs/02-data-cleaning.md` et `pipelines/README.md`.
 
 - **Référentiel de quartiers** : enrichi en issue #20 (non reconnus 582 → 101) ; les libellés restants sont ambigus ou non vérifiables et restent signalés.
 - **Prix bornés** : part importante du dataset → stratégie de pondération/exclusion (Phases 5-6).
+
+  > Décision (2026-10-15, plan de réalignement) : **adapter la cible et l'intervalle** par une
+  > expérience mesurée (lot E), plutôt que pondérer ou exclure ; mise en œuvre reportée.
 - **Surface** toujours absente.
 - **Republications** : décider si elles sont conservées/pondérées pour l'entraînement.

@@ -624,13 +624,14 @@ schémas (port **5433**, critère déjà conforme) ; `dev` et `prod` sont sépar
 
 > Vérifications : `ruff` 0 erreur · `pytest` **182 / 0 ignoré** en local (`pyarrow` installé
 > dans le venv — critère §8.1) · chaîne complète en base jetable : 360/48/3 lignes chargées
-> → `dbt build` **137/137** · schéma `analytics` réel inchangé.
+> → `dbt build` **137/137** · schéma `analytics` réel inchangé · pipeline de la **PR #37**
+> **verte en CI** : `pytest` **182 / 0 ignoré** et `dbt build` **137/137 exécutés en CI**.
 
 ### 10.4 Comment le statut est tenu
 
 `context/progress-tracker.md` doit refléter l'**état réel**, jamais l'état souhaité. À chaque
 lot vérifié : mise à jour du tracker et de la §14 du plan. La dernière synchronisation date
-du 16/10/2026 (PR #36).
+du 16/10/2026 (PR #37).
 
 ---
 

@@ -35,15 +35,16 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    env:
-      # Racine de données **dédiée à la CI** : le jeu synthétique n'atteint jamais
-      # `data/` du projet (déjà ignoré par git, mais jamais écrasable : cf. le
-      # refus intégré au générateur).
-      CAMRENT_DATA_ROOT: ${{ runner.temp }}/camrent-ci-data
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Racine de données dédiée à la CI
+        # Définie en GITHUB_ENV (et non en env de job) : le contexte `runner`
+        # n'est pas lisible au niveau job. Le jeu synthétique n'atteint jamais
+        # `data/` du projet (ignoré par git, mais jamais écrasable : cf. le refus
+        # intégré au générateur).
+        run: echo "CAMRENT_DATA_ROOT=$RUNNER_TEMP/camrent-ci-data" >> "$GITHUB_ENV"
 
       - name: Setup Python
         uses: actions/setup-python@v5

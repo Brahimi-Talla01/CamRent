@@ -15,13 +15,18 @@ relancer une collecte ne corrompt donc pas les données existantes (idempotence)
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
 from . import config
 from .models import RawRecord, now_iso
+
+# Taille de lecture pour le calcul d'empreinte (le brut peut être volumineux :
+# on hashe en flux, sans charger le fichier entier en mémoire).
+_HASH_CHUNK_BYTES = 65536
 
 
 def _utc_day() -> str:
@@ -89,13 +94,41 @@ class RawJsonlWriter:
         self.abort()
 
 
+def content_digest(path: Path) -> tuple[str, int]:
+    """Empreinte SHA-256 du fichier brut et sa taille en octets.
+
+    L'empreinte porte sur le **contenu écrit**, octet pour octet : elle permet de
+    constater qu'un lot n'a pas été altéré après collecte (raw immuable) et
+    d'alimenter la traçabilité de provenance (plan de réalignement §7.7).
+    """
+    digest = hashlib.sha256()
+    size = 0
+    with path.open("rb") as handle:
+        while chunk := handle.read(_HASH_CHUNK_BYTES):
+            digest.update(chunk)
+            size += len(chunk)
+    return digest.hexdigest(), size
+
+
 def write_metadata(
     spec: config.SourceSpec,
     writer: RawJsonlWriter,
     urls: list[str],
     notes: str = "",
+    *,
+    validation_status: str = "not_run",
+    validation_failures: Sequence[str] = (),
 ) -> Path:
-    """Écrit les métadonnées du lot : source, URL, date, méthode, volume, format."""
+    """Écrit les métadonnées du lot (provenance, volume, empreinte, validation).
+
+    Le fichier de métadonnées est écrit **une seule fois**, à la fin de la
+    collecte, comme le brut : il n'est jamais réécrit ensuite (invariant raw).
+    Le statut de validation consigné ici est celui des contrôles Bronze
+    évaluables **à la collecte** (existence, format, volume, clés requises). La
+    validation Bronze complète, qui exige les métadonnées, se fait via
+    ``python -m ingestion --validate-bronze``.
+    """
+    sha256, size_bytes = content_digest(writer.path)
     path = raw_dir(config.CATEGORY_METADATA, writer.day) / f"{spec.name}_{writer.stamp}.json"
     payload: dict[str, Any] = {
         "source": spec.name,
@@ -110,6 +143,13 @@ def write_metadata(
         "rights_status": spec.rights,
         "rights_notice": spec.rights_notice,
         "notes": notes,
+        # Provenance renforcée (spec Phase 1 §6) : version du code de collecte
+        # et de parsing, empreinte de contenu du lot, statut de validation.
+        "connector_version": config.CONNECTOR_VERSION,
+        "content_bytes": size_bytes,
+        "content_sha256": sha256,
+        "lot_validation_status": validation_status,
+        "lot_validation_failures": list(validation_failures),
     }
     with path.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
@@ -126,6 +166,10 @@ def iter_raw_files() -> Iterator[Path]:
 
 
 def iter_metadata_files() -> Iterator[Path]:
+    """Itère sur les métadonnées de lot, du plus ancien au plus récent.
+
+    Le tri porte sur le chemin complet (date puis horodatage du lot).
+    """
     meta_dir = config.RAW_ROOT / config.CATEGORY_METADATA
     if not meta_dir.exists():
         return

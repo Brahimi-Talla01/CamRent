@@ -87,11 +87,22 @@ def run_collect(name: str, confirm_legal: str | None, limit: int | None) -> int:
         print(f"[VIDE] {name} : aucune observation collectée", file=sys.stderr)
         return 1
 
+    # Le lot est validé **avant** l'écriture des métadonnées : elles consignent
+    # donc un statut de validation réel, et ne sont jamais réécrites ensuite.
+    lot_report = bronze.check_lot(writer.path)
     notes = "" if failure is None else f"collecte interrompue : {failure}"
-    metadata_path = write_metadata(spec, writer, list(spec.urls), notes)
+    metadata_path = write_metadata(
+        spec,
+        writer,
+        list(spec.urls),
+        notes,
+        validation_status="ok" if lot_report.ok else "failed",
+        validation_failures=[check.name for check in lot_report.failures],
+    )
     print(f"[OK] {name} : {writer.count} observation(s) brute(s)")
     print(f"     brut      : {writer.path}")
     print(f"     métadonnées : {metadata_path}")
+    print(f"     validation du lot : {lot_report.summary()}")
     return 0
 
 

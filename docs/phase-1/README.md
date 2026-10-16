@@ -10,7 +10,7 @@ Collecte des sources retenues en Phase 0, stockage brut **immuable** dans
 |---|---|
 | Package d'ingestion (HTTP, sources, stockage, CLI) | `ingestion/` |
 | Porte légale + `robots.txt` + débit + UA transparent | `ingestion/http_client.py`, `ingestion/sources/base.py` |
-| Stockage brut daté + métadonnées de lot | `ingestion/storage.py` |
+| Stockage brut daté + métadonnées de lot (provenance : version de connecteur, empreinte de contenu, statut de validation) | `ingestion/storage.py` |
 | Validations Bronze | `ingestion/bronze.py` |
 | Tests unitaires (parsing, stockage, Bronze, porte légale) | `tests/unit/test_ingestion_*.py` |
 | Revue légale des sources | `docs/phase-1/legal-review.md` |
@@ -24,9 +24,10 @@ Collecte des sources retenues en Phase 0, stockage brut **immuable** dans
 | `reference_local` | `reference_data` | local (sans réseau) | non requise |
 | `minfi_open_data` / `ins_cameroon` | `reference_data` | uncertain | requise |
 
-## Vérifications effectuées (9 octobre 2026)
+## Vérifications effectuées (9 octobre 2026 ; provenance revérifiée le 16 octobre 2026)
 
-- **Tests** : `17` tests unitaires, verts (collecte revérifiée le 2026-10-15 : 17 tests `test_ingestion_*`).
+- **Tests** : `24` tests unitaires d'ingestion, verts (17 en Phase 1 ; 7 ajoutés avec la
+  provenance renforcée du lot B : empreinte de contenu, statut de validation, validation d'un lot).
 - **Lint** : `ruff` sans erreur.
 - **Collectes réelles** :
   - `geloka` → **8** observations (baromètre agrégé) ;
@@ -34,7 +35,10 @@ Collecte des sources retenues en Phase 0, stockage brut **immuable** dans
   - `koutchoumi` → collecte vérifiée de bout en bout (3 obs. en `--limit 3`,
     volume complet borné par `--limit` / `CAMRENT_KOUTCHOUMI_MAX_PAGES`).
 - **Validations Bronze** : `16/16` contrôles réussis (présence, format, volume,
-  clés, métadonnées, fraîcheur).
+  clés, métadonnées, fraîcheur) — revérifié le 2026-10-16 sur le brut existant.
+- **Provenance (2026-10-16)** : un lot rejoué (`reference_local`, `--limit 20`) écrit
+  `connector_version`, `content_sha256` et `lot_validation_status: "ok"` ; l'empreinte
+  recalculée indépendamment (`sha256sum`) correspond exactement.
 - **Idempotence** : deux runs successifs produisent deux fichiers horodatés
   distincts, sans écrasement.
 - **Minimisation** : aucune donnée personnelle dans le brut (le texte brut des
@@ -46,6 +50,7 @@ Collecte des sources retenues en Phase 0, stockage brut **immuable** dans
 |---|---|
 | Données brutes d'au moins une collecte complète dans `data/raw/` | ✅ (3 sources) |
 | Métadonnées de collecte pour chaque lot | ✅ |
+| Empreinte de contenu et version du connecteur traçables par lot | ✅ (lot B, 2026-10-16) |
 | Validations Bronze passent (présence, volume, format, fraîcheur) | ✅ 16/16 |
 | Raw dataset v1 produit et immuable | ✅ (fichiers datés, jamais écrasés; non versionné) |
 | Aucune source sans vérification légale collectée | ✅ (porte `--confirm-legal`) |

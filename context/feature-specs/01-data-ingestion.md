@@ -63,3 +63,15 @@ sans les altérer, avec leurs métadonnées et premières validations.
 - Les validations Bronze passent (présence, volume, format, fraîcheur).
 - Le Raw dataset v1 est produit et immuable.
 - Aucune source sans vérification légale n'est collectée.
+
+## État d'implémentation (2026-10-16)
+
+- **Provenance renforcée implémentée** (lot B) : `ingestion/config.py::CONNECTOR_VERSION` est
+  consignée par lot, avec `content_sha256` / `content_bytes` (empreinte du fichier brut, calculée en
+  flux) et `lot_validation_status` / `lot_validation_failures`. Le contrôle Bronze d'un lot
+  (`bronze.check_lot`) tourne **avant** l'écriture des métadonnées, qui ne sont jamais réécrites
+  (invariant raw) ; la validation complète reste `python -m ingestion --validate-bronze`.
+- **Vérifié** : un lot rejoué (`reference_local`, `--limit 20`) écrit les trois champs, avec
+  `lot_validation_status: "ok"` ; l'empreinte recalculée indépendamment (`sha256sum`) est identique.
+  Les lots antérieurs au 2026-10-16 n'ont pas ces champs — l'absence est propagée telle quelle en
+  base (`mart_ingestion_lots.has_provenance = false`), jamais comblée.

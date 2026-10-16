@@ -7,11 +7,12 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Phase 7 — Model registry** terminée et **mergée** (PR #29, squash `daacdc0`, issue #8 close) ; Phase 6 mergée (PR #27, squash `99969c6`, issue #7 close), Phase 5 mergée (PR #26, squash `38ad713`, issue #6 close), Phase 4 mergée (PR #23 + conformité PR #25, issue #5 close), Phase 3 mergée (PR #19, issue #4) et durcissement du référentiel mergé (PR #22, issue #20 close).
 - **Audit et plan de réalignement** (2026-10-15) : audit en lecture seule des phases 00-07 et plan validé dans `context/plans/camrent-audit-and-realignment-plan.md` (branche `chore/audit-realignement`). Les 10 décisions d'arbitrage ont été validées par le porteur du projet ; elles sont consignées dans la section « Recadrage produit — décisions validées » ci-dessous ; le suivi d'exécution par lot vit au §14 du plan.
 - **Lots A1 et A2 terminés et vérifiés (2026-10-15)** — détails en « Completed » ci-dessous. A1 = décisions actées dans la documentation ; A2 = registre de modèles gouverné (promotion approuvée explicitement, version servie épinglée dans `ml/models/champion.json`, hash de dataset complet, emplacement d'artefacts épinglé). Vérifications : `ruff` 0 erreur, `pytest` **161 réussis / 1 ignoré**, refus de promotion sans approbation (exit 1, registre inchangé) puis promotion `rent-model-v3` avec approbation. Specs de cadrage 13/14/15 créées (reste du lot 0). Ces lots sont portés par la **PR #33** (branche `chore/audit-realignement` → `develop`).
-- **Prochaine étape : lot B — qualité et contrat de données** (quarantaine et métadonnées de lots interrogeables en base, table de qualité, colonne `rent_semantics`, bornes `bathrooms`). **La Phase 8 n'est pas encore démarrée** : elle suivra en deux temps (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
+- **Lot B — qualité et contrat de données terminé et vérifié (2026-10-16)** — détails en « Completed » ci-dessous. Périmètre : provenance d'ingestion (version de connecteur, empreinte de contenu, statut de validation), quarantaine et métadonnées de lot interrogeables en base, `mart_data_quality` et `mart_ingestion_lots`, colonne `rent_semantics`, contrôle des bornes de pièces. Vérifications : `ruff` 0 erreur ; `pytest` **175 réussis / 1 ignoré** ; `dbt build` **137/137** (16 modèles, 121 tests dont 6 singuliers) ; contrôles `psql` sur les volumes et l'invariant de publication.
+- **Prochaine étape : lot C — CI de données** (service PostgreSQL et `dbt build` en CI, backend de build figé, `.env.example` aligné sur le port 5433, schémas dbt `dev`/`prod` séparés). **La Phase 8 n'est pas encore démarrée** : elle suivra en deux temps (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
 
 ## Current Goal
 
-- **Lot B — qualité et contrat de données** : rendre la quarantaine et les métadonnées de collecte interrogeables en base (motifs de rejet agrégés), ajouter `rent_semantics` au dataset ML et contrôler les bornes `bathrooms` — prérequis du module « Qualité » du futur back-office et de la Phase 11.
+- **Lot C — CI de données** : exécuter `dbt build` (16 modèles, 121 tests) sur un service PostgreSQL en intégration continue, figer le backend de build, aligner `.env.example` (5433) et séparer les schémas dbt `dev`/`prod` — pour que les invariants de données (N ≥ 30, bornes, motifs de rejet, sémantique de cible) soient protégés automatiquement, et non par des exécutions locales.
 
 ## Completed
 
@@ -196,6 +197,40 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - tests : `tests/unit/test_ml_{tracking,registry}.py` étendus (**7 nouveaux tests**) + `tests/unit/conftest.py` (artefacts de test isolés) ; suite complète **161 réussis, 1 ignoré** (le skip `pyarrow` préexistant) ; `ruff` 0 erreur ; vérifié en CLI : refus exit 1 sans approbation (2 versions inchangées, aucun pin créé), puis promotion `rent-model-v3` (alias `champion` → v3, tags d'approbation, `champion.json` écrit).
   - **Reste ouvert (P2 partiel, plan §7.5)** : politique de rétention des runs — l'expérience `rent_prediction` compte 84 runs sans politique d'hygiène.
 
+- **Lot B — qualité et contrat de données (2026-10-16)** (plan §10 « Lot 2 », écarts P4 et P3/mesure) :
+  - **B1 — provenance d'ingestion** : `ingestion/config.py::CONNECTOR_VERSION` (version du code de
+    collecte/parsing) ; `ingestion/storage.py` consigne par lot `connector_version`,
+    `content_sha256` / `content_bytes` (empreinte du fichier brut, calculée en flux) et
+    `lot_validation_status` / `lot_validation_failures` ; `ingestion/bronze.py::check_lot` valide
+    **un** lot (utilisé par le CLI à la collecte, avant l'écriture des métadonnées, pour consigner
+    un statut réel) et `run_validations` réutilise ces contrôles.
+  - **B2 — qualité en base** : `pipelines/db.py` charge trois tables d'atterrissage (Silver,
+    quarantaine, métadonnées de lot) avec la même stratégie idempotente (vidage puis insertion,
+    jamais de `DROP`) ; dbt expose `stg_quarantine`, `stg_ingestion_runs`, `mart_data_quality`
+    (motifs de rejet agrégés par source, avec le total de la source) et `mart_ingestion_lots`
+    (un lot par ligne, provenance lisible, `has_provenance` pour signaler les lots antérieurs).
+  - **B3 — sémantique de cible** (décision 9) : `mart_ml_dataset.rent_semantics`
+    (`asking_rent` / `unknown`), cible non renommée.
+  - **B4 — bornes de pièces** : le contrôle demandé par la spec 02 §12 **existait déjà** en
+    Phase 2 (`pipelines/silver.py::_outlier_flags` signale `bathrooms > 10` en `bathrooms_outlier`) ;
+    ce lot ajoute ce qui manquait — un test dbt qui **vérifie le signalement**
+    (`assert_implausible_rooms_are_signalled`, contrôle négatif probant : avec la borne forcée à 0,
+    le test remonte 2 987 lignes et échoue) — et corrige l'affirmation inverse portée par le suivi.
+    Aucune donnée n'a été modifiée : les 3 observations à `bathrooms = 80` restent conservées et signalées.
+  - **Vérifications** : `ruff` 0 erreur ; `pytest` **175 réussis / 1 ignoré** (+14 tests :
+    7 ingestion, 7 chargeur) ; `dbt build` **137/137** (16 modèles, 121 tests dont 6 singuliers,
+    contre 95/95 et 83 tests) ; en base : `landing.quarantine_listings` 78 lignes,
+    `landing.ingestion_runs` 3 lots, `mart_data_quality` 4 lignes (52/18/7/1 = 78 rejets réconciliés),
+    `mart_ingestion_lots` 3 lots avec `has_provenance = false`, `rent_semantics = asking_rent` sur
+    2 992 lignes, volumes et invariant de publication inchangés (234 médianes non publiées sur 253,
+    plus petit N publié = 31).
+  - **Contrôle de bout en bout** : un lot rejoué via le CLI (`reference_local`, `--limit 20`, racine
+    temporaire) écrit `connector_version`, `content_sha256` et `lot_validation_status: "ok"` ;
+    l'empreinte recalculée indépendamment (`sha256sum`) est identique.
+  - **Reste ouvert** : aucune observation à sémantique non établie aujourd'hui — `rent_semantics`
+    vaudra `unknown` pour une future source sans prix interprétable ; les lots antérieurs au 2026-10-16
+    n'ont pas de provenance (absence signalée, jamais comblée).
+
 - **Harmonisation documentaire face au plan (2026-10-15)** — revue de cohérence de tous les documents de suivi (`context/`, `docs/`, READMEs) contre le plan validé, corrections validées par le porteur du projet :
   - specs `06`/`08`/`09` alignées sur les features réellement disponibles (payload API et formulaire sans `area_m2`/`parking`/`gated`) et le découpage 08a/08b puis 09a/09b ;
   - `project-overview.md` : variables MVP séparées (disponibles aujourd'hui / hors périmètre tant que non collectées) ;
@@ -205,15 +240,14 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## In Progress
 
-- **Aucun lot en cours.** Le lot A2 est terminé et vérifié (2026-10-15) ; ses changements (et ceux du lot A1) sont **non commités** sur la branche `chore/audit-realignement`.
+- **Aucun lot en cours.** Le lot B est terminé et vérifié (2026-10-16) ; ses changements sont **non commités**, sur la branche dédiée `lot-b-qualite-donnees` (aucun commit ni push sans demande explicite, AGENTS.md §8).
 
 ## Next Up
 
-- **Lot B — qualité et contrat de données** (plan §10 « Lot 2 ») : quarantaine et métadonnées de lots interrogeables en
-  base, table de qualité (motifs de rejet), version de parseur et empreinte de contenu, colonne
-  `rent_semantics` dans `mart_ml_dataset`, contrôle des bornes `bathrooms`.
 - **Lot C — CI de données** (plan §10 « Lot 3 ») : service PostgreSQL et `dbt build` en CI, backend de build figé,
-  `.env.example` aligné sur le port 5433, schémas dbt `dev`/`prod` séparés.
+  `.env.example` aligné sur le port 5433, schémas dbt `dev`/`prod` séparés. Inclut le critère de la §8.1 du plan :
+  **0 test ignoré** dans l'environnement de référence (installer `pyarrow`, absent du venv local — c'est le seul test
+  encore ignoré de la suite).
 - **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 ») : **08a API publique** (prédiction, marché, comparaison — modèle
   **épinglé**) puis **08b API interne** (permissions, jobs, accès administrateur).
 - **Lot E — prix censurés** : adapter la cible et l'intervalle, par une expérience **mesurée**, après
@@ -292,11 +326,17 @@ fichier versionné `ml/models/champion.json`.
 - EDA (Phase 3) : 2 992 lignes → distribution asymétrique, 2 564 prix bornés, 1 970 republications, 17 aberrations, 582 quartiers non reconnus, pas de surface/date/meublé.
 - Référentiel (issue #20) : 26 quartiers ajoutés et alias tracés ; non reconnus 582 → 101 (19,5 % → 3,4 %) ; quartiers canoniques utilisés 34 → 61 ; republications 1 970 → 2 001 ; 0 conflit ville/quartier.
 - Phase 5 : baselines mesurées — MAE validation 97 079 FCFA (quartier+type) contre 190 141 (moyenne globale) ; seuil à battre 79 773 FCFA (−17,83 %) ; MAE instable (test 185 261) alors que la MedAE reste à 40 000/35 000 → gain ML à confirmer sur plusieurs graines.
-- Phase 4 (conformité) : vérification complète de la phase (chaîne rejouée, base interrogée, manifeste dbt, catalogue) — 0 orphelin sur les 4 clés, 0 violation du seuil N<30, drapeaux alignés sur le Silver (2 001 / 2 564 / 17 / 101) ; écarts corrigés : tests de bornes et relations manquants, invariant N<30 gardé par un test, champ Fréquence du catalogue, nommage des schémas, commentaire CI obsolète. Piste non traitée : `bathrooms` atteint 80 dans le Silver sans être signalé (contrôle Phase 2).
+- Phase 4 (conformité) : vérification complète de la phase (chaîne rejouée, base interrogée, manifeste dbt, catalogue) — 0 orphelin sur les 4 clés, 0 violation du seuil N<30, drapeaux alignés sur le Silver (2 001 / 2 564 / 17 / 101) ; écarts corrigés : tests de bornes et relations manquants, invariant N<30 gardé par un test, champ Fréquence du catalogue, nommage des schémas, commentaire CI obsolète. Piste annoncée alors comme « non traitée » (`bathrooms` atteint 80) : **vérifiée le 2026-10-16** — la valeur est bien signalée (`outlier_flags = bathrooms_outlier` sur 3 observations) ; ce qui manquait était le test dbt de ce signalement, ajouté par le lot B.
 - Phase 4 (suite) : PR #23 mergée en squash (`75775b9`, issue #5 close) ; chargement rejouable (vidage `TRUNCATE` + réinsertion, table jamais droppée) et CI qui installe désormais `sqlalchemy` afin d'exécuter réellement les tests du chargeur.
 - Phase 4 : PostgreSQL docker-compose sur **5433** (5432 occupé par le PostgreSQL système local, mot de passe `camrent` inconnu) ; dbt installé dans `.venv` (dbt-core 1.12.5, dbt-postgres 1.11.0, compatible Python 3.14) ; connexion dbt via variables `DBT_*` (profiles.yml) ; `pipelines load` via `DATABASE_URL`.
 - **Phase 6** : exécution réelle sur `mart_ml_dataset` (2 992 obs) — 12 candidats comparés ; les trois ensembles d'arbres sur `log1p` sont au coude-à-coude (75 161 / 75 281 / 75 425 FCFA), très loin devant les linéaires (82 032 à 151 066) ; la transformation `log1p` vaut 4 000 à 10 000 FCFA par famille. LightGBM non retenu (dépendance et temps d'entraînement sans gain démontré), mais comparé et documenté. Le rang de la graine de référence ne suffit pas : `random_forest_log1p` 3ᵉ sur la graine de référence, 1ᵉʳ sur les 2 autres.
 - **Phase 6** : conteneur `camrent-postgres` en écoute sur le **port 5433** alors que `.env` porte `POSTGRES_PORT=5432` — l'URL réelle est `postgresql://camrent:change-me@localhost:5433/camrent` (écrit dans `ml/README.md`).
 - Phase 4 : `dbt build` 95/95 (12 modèles + 83 tests) ; volumes vérifiés en base : 2 992 lignes traversant toutes les couches ; mart_city_prices : Douala N=2 811 méd. 100 000, Yaoundé N=181 méd. 150 000 (conforme EDA) ; 253 groupes quartier×type×chambres ; médiane null strictement sous N=30 ; 101 non reconnus / 2 001 républications / 2 564 prix bornés / 17 aberrations conservés avec drapeaux.
+- **Lot B (2026-10-16)** : après le lot, `python -m pipelines load` charge trois tables
+  (`landing.silver_listings` 2 992 · `landing.quarantine_listings` 78 · `landing.ingestion_runs` 3 lots) ;
+  `dbt build` = 137/137 (16 modèles, 121 tests dont 6 singuliers) ; le mart `mart_ml_dataset` gagne
+  `rent_semantics` (rappel : le hash de dataset MLflow couvre **tout** le contenu du mart depuis le
+  lot A2, une nouvelle colonne change donc la version de dataset — les métriques publiées des
+  phases 5-6 n'ont pas été recalculées par ce lot).
 - **Phase 7** : `mlflow-skinny` 3.17.1 (Python 3.14) — `alembic` et `skops` sont nécessaires en plus du `mlflow-skinny` ; base de registre `mlflow` créée une fois dans le conteneur (`createdb -U camrent mlflow`) ; l'URI de suivi est **dérivée de `DATABASE_URL`** — jamais via `str(URL)` (SQLAlchemy masquerait le mot de passe en `***`) ; la création des tables MLflow est très lente sur SQLite (~100 s) alors qu'elle est immédiate sur PostgreSQL.
 - **Lot A2 (2026-10-15)** : promotion non approuvée refusée **avant toute écriture** (vérifié en CLI : 2 versions inchangées, aucun fichier épinglé créé, exit 1) ; avec `--confirm-promotion --approved-by` : création de `rent-model-v3`, alias `champion` → v3, tags `approuve_par`/`approuve_le`, écriture de `ml/models/champion.json` ; registre à **3 versions** (v1 rejeu du 2026-10-14, v2, v3). Le fichier `ml/models/champion.json` est le **seul** artefact de modèle versionné (`git check-ignore` exit 1) ; `ml/artifacts/mlflow` est ignoré. `stash@{0}` conserve les anciens rapports régénérés (phases 6-7) ; aucun commit ni push.

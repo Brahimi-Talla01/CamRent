@@ -1,16 +1,17 @@
 version: 2
 
-# Table d'atterrissage dans le schéma `landing` : copie du Silver Parquet
-# chargée par `python -m pipelines load` (pipelines/db.py). La donnée brute
-# reste dans `data/raw/` (immuable) ; cette table est une copie dérivée du
-# Silver nettoyé, rejouable à tout moment.
+# Tables d'atterrissage dans le schéma `landing` : copies des artefacts de la
+# Data Platform, chargées par `python -m pipelines load` (pipelines/db.py).
+# Les données brutes restent dans `data/raw/` (immuables) et le Silver dans
+# `data/processed/` ; ces tables sont des copies dérivées, rejouables à tout
+# moment (vidage puis insertion, jamais de DROP).
 
 sources:
   - name: landing
     description: >
-      Atterrissage du Silver dataset (Phase 2) dans PostgreSQL.
-      Chargée par `python -m pipelines load` depuis
-      data/processed/silver_listings.parquet.
+      Atterrissage de la Data Platform dans PostgreSQL : Silver nettoyé,
+      quarantaine de la Phase 2 et métadonnées de collecte.
+      Chargé par `python -m pipelines load`.
     schema: landing
     tables:
       - name: silver_listings
@@ -26,5 +27,34 @@ sources:
             tests:
               - not_null
           - name: rent_price
+            tests:
+              - not_null
+
+      - name: quarantine_listings
+        description: >
+          Observations rejetées par la Phase 2 (jamais supprimées), avec leur
+          motif. Grain : une ligne par observation rejetée, une ligne par ligne
+          de quarantine_listings.parquet. 78 lignes attendues au dernier rejeu.
+        columns:
+          - name: quarantine_reason
+            description: Motif du rejet (prix_manquant, type_inconnu, city_inconnue, prix_invalide).
+            tests:
+              - not_null
+          - name: source
+            tests:
+              - not_null
+
+      - name: ingestion_runs
+        description: >
+          Métadonnées de collecte : une ligne par lot brut (data/raw/metadata).
+          Depuis la provenance renforcée (lot B), chaque nouveau lot porte la
+          version du connecteur, l'empreinte SHA-256 de son contenu et le statut
+          de ses validations Bronze ; les lots antérieurs n'ont pas ces champs.
+        columns:
+          - name: raw_file
+            description: Chemin du fichier brut relatif à data/raw/.
+            tests:
+              - not_null
+          - name: source
             tests:
               - not_null

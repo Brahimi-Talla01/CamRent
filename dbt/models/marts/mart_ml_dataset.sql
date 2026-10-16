@@ -6,7 +6,9 @@
 }}
 
 -- Dataset ML : features du MVP + cible `rent_price` (Prix **demandé** dans
--- l'annonce, pas prix payé). Grain : une ligne par observation Silver.
+-- l'annonce, pas prix payé) + la sémantique explicite de cette cible
+-- (`rent_semantics`, décision du 2026-10-15). Grain : une ligne par observation
+-- Silver.
 --
 -- Garde-fous (code-standards.md §ML) :
 -- - `rent_per_m2` est **interdit** comme feature (dépend directement de la
@@ -30,6 +32,18 @@ select
     gated,
     area_m2,
     rent_price                                                   as target_rent_price,
+    -- Sémantique de la cible, explicite dans les données (décision 9) :
+    -- `asking_rent` = loyer demandé dans une annonce ; `unknown` = sémantique
+    -- non établie. Le Silver ne conserve que des lignes dont le prix est celui
+    -- de l'annonce (les prix manquants partent en quarantaine) : toutes les
+    -- lignes actuelles sont donc `asking_rent`. La colonne existe pour que la
+    -- sémantique soit **lue dans les données**, jamais supposée — et pour
+    -- permettre à une future source de rester `unknown` plutôt que d'être
+    -- silencieusement présentée comme un loyer demandé.
+    case
+        when rent_price is not null then 'asking_rent'
+        else 'unknown'
+    end                                                          as rent_semantics,
     currency,
     price_is_bound,
     bedrooms_is_bound,

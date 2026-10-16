@@ -3,7 +3,7 @@
 Exemples :
 
     python -m pipelines silver --report docs/phase-2/cleaning-report.md
-    python -m pipelines load            # Silver Parquet → PostgreSQL (Phase 4)
+    python -m pipelines load            # Silver + quarantaine + lots → PostgreSQL
 """
 
 from __future__ import annotations
@@ -32,10 +32,17 @@ def build_parser() -> argparse.ArgumentParser:
     silver_cmd.add_argument("--verbose", action="store_true")
 
     load_cmd = sub.add_parser(
-        "load", help="charger le Silver Parquet dans PostgreSQL (table landing)"
+        "load",
+        help="charger le Silver, la quarantaine et les lots dans PostgreSQL (landing)",
     )
     load_cmd.add_argument("--database-url", type=str, default=None, help=argparse.SUPPRESS)
     load_cmd.add_argument("--silver-path", type=Path, default=None, help="chemin du Parquet Silver")
+    load_cmd.add_argument(
+        "--quarantine-path", type=Path, default=None, help="chemin du Parquet de quarantaine"
+    )
+    load_cmd.add_argument(
+        "--raw-root", type=Path, default=None, help="racine du Raw (métadonnées de lot)"
+    )
     load_cmd.add_argument("--verbose", action="store_true")
     return parser
 
@@ -64,18 +71,31 @@ def run_silver(raw_root: Path | None, out_dir: Path | None, report_path: Path | 
     return 0
 
 
-def run_load(silver_path: Path | None, database_url: str | None) -> int:
+def run_load(
+    silver_path: Path | None,
+    quarantine_path: Path | None,
+    raw_root: Path | None,
+    database_url: str | None,
+) -> int:
     # Import paresseux : la sous-commande `silver` ne nécessite pas SQLAlchemy/psycopg.
     from . import db  # noqa: PLC0415
 
     try:
-        result = db.load_silver_to_postgres(silver_path=silver_path, database_url=database_url)
+        result = db.load_all_to_postgres(
+            silver_path=silver_path,
+            quarantine_path=quarantine_path,
+            database_url=database_url,
+            raw_root=raw_root,
+        )
     except (FileNotFoundError, RuntimeError, KeyError, ValueError, OSError) as exc:
         print(f"[ERREUR] chargement impossible : {exc}", file=sys.stderr)
         return 1
 
-    print(f"[OK] Chargé : {result['rows']} lignes → {result['table']}")
-    print(f"     depuis : {result['silver_path']}")
+    for table in ("silver", "quarantine", "ingestion_runs"):
+        loaded = result[table]
+        print(f"[OK] {loaded['table']} : {loaded['rows']} ligne(s)")
+    print(f"     rejets par motif : {result['quarantine']['by_reason']}")
+    print(f"     lots chargés     : {result['ingestion_runs']['rows']}")
     return 0
 
 
@@ -88,7 +108,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "silver":
         return run_silver(args.raw_root, args.out_dir, args.report)
     if args.command == "load":
-        return run_load(args.silver_path, args.database_url)
+        return run_load(
+            args.silver_path, args.quarantine_path, args.raw_root, args.database_url
+        )
     build_parser().print_help()
     return 1
 

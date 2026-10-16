@@ -1,0 +1,40 @@
+version: 2
+
+models:
+  - name: stg_ingestion_runs
+    description: >
+      Vue de staging des métadonnées de collecte : une ligne par lot brut de
+      `data/raw/metadata`. Porte la provenance (version de connecteur, empreinte
+      de contenu, statut de validation) — nulle pour les lots antérieurs à son
+      introduction.
+    columns:
+      - name: raw_file
+        description: Chemin du fichier brut relatif à data/raw/.
+        tests:
+          - unique
+          - not_null
+      - name: source_name
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['geloka', 'koutchoumi', 'reference_local', 'minfi_open_data', 'ins_cameroon']
+      - name: record_count
+        description: Nombre d'observations déclarées dans les métadonnées du lot.
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: lot_validation_status
+        description: >
+          Statut des contrôles Bronze évaluables à la collecte (`ok`, `failed`),
+          ou `unreadable` si les métadonnées n'ont pas pu être lues. Nul pour les
+          lots antérieurs à la provenance renforcée.
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ok', 'failed', 'unreadable']
+      - name: has_provenance
+        tests:
+          - not_null

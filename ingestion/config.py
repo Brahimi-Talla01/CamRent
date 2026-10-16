@@ -16,7 +16,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
 
+from . import __version__
+
 PROJECT_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
+
+# ---------------------------------------------------------------------------
+# Version du **connecteur** : le code de collecte et de parsing d'une source.
+# Consignée dans les métadonnées de chaque lot (spec Phase 1 §6) pour qu'on
+# puisse rattacher un brut à la version de code qui l'a produit.
+# ---------------------------------------------------------------------------
+CONNECTOR_VERSION: Final[str] = __version__
 
 # ---------------------------------------------------------------------------
 # Identité de collecte (User-Agent transparent). Surchargeable par variable d'env.

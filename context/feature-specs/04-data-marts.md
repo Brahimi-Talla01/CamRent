@@ -71,3 +71,15 @@ l'API et le ML.
 - `mart_ml_dataset` contient les features du MVP + `rent_price` + `rent_semantics`.
 - Chaque dataset important est documenté (grain, source, fréquence, owner, sensibilité).
 - Le lineage est traçable de la source au mart.
+
+## État d'implémentation (2026-10-16)
+
+- **Sémantique de cible** (lot B) : `mart_ml_dataset.rent_semantics` (`asking_rent` / `unknown`),
+  cible non renommée ; `asking_rent` sur les 2 992 observations (aucune valeur nulle).
+- **Qualité en base** (lot B) : `landing.quarantine_listings` (78 rejets) et
+  `landing.ingestion_runs` (3 lots) chargées par `python -m pipelines load` ; marts
+  `mart_data_quality` (4 lignes, motifs 52/18/7/1 = 78 rejets réconciliés par test singulier) et
+  `mart_ingestion_lots` (une ligne par lot, provenance et `has_provenance`).
+- **Vérifié** : `dbt build` **137/137** — 16 modèles, 121 tests dont 6 singuliers (volumes de
+  `landing.silver_listings` à `mart_ml_dataset` inchangés : 2 992 lignes ; invariant de publication
+  des médianes intact : 234 non publiées sur 253 groupes, plus petit N publié = 31).

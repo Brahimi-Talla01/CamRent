@@ -1,6 +1,12 @@
 # Configuration Python de CamRent.
-# NOTE : le backend de build (hatchling/setuptools) sera ajouté quand le premier
-# package Python sera créé. En attendant, ce fichier déclare les dépendances et l'outillage.
+#
+# Backend de build **figé** (lot C, plan §7.10 / §8.2) : le paquet est
+# installable, ce qui permet à la CI d'installer le projet au lieu d'empiler des
+# `pip install` de dépendances manuelles.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "camrent"
@@ -46,6 +52,14 @@ dev = [
     "pytest",
     "pytest-cov",
 ]
+
+[tool.setuptools]
+# Layout plat : l'auto-discovery de setuptools refuse plusieurs paquets de
+# premier niveau (« flat-layout »), on les déclare explicitement.
+# - `eda/` n'a pas d'`__init__.py` : ce sont des scripts exécutés depuis la
+#   racine (`python eda/...`), pas un paquet — hors installation.
+# - `tests/`, `docs/` et `assets/` ne sont pas des paquets d'exécution.
+packages = ["ingestion", "ingestion.sources", "pipelines", "ml", "ml.src"]
 
 [tool.ruff]
 line-length = 100

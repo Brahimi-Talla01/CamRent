@@ -3,7 +3,15 @@
 #
 # dbt lit automatiquement ce fichier quand il est lancé depuis `dbt/`. Variables attendues :
 #   DATABASE_URL  — postgresql://user:motdepasse@hote:port/base
-#   DBT_TARGET    — `dev` (défaut) ou `prod` (même base au MVP)
+#   DBT_TARGET    — `dev` (défaut) ou `prod`
+#   DBT_SCHEMA_DEV  — schéma de développement (défaut `analytics`, fallback `DBT_SCHEMA`)
+#   DBT_SCHEMA_PROD — schéma de production (défaut `analytics_prod`)
+#
+# Séparation des environnements (lot C, plan §7.11 / écart P8) : `dev` et `prod`
+# n'écrivent **jamais** dans le même schéma. Le changement est non destructif :
+# un premier `dbt build --target prod` crée le schéma `analytics_prod` à côté du
+# schéma `analytics` existant ; aucune table de développement n'est déplacée ni
+# supprimée, et `analytics` reste intact tant que `--target prod` n'est pas lancé.
 
 camrent:
   target: "{{ env_var('DBT_TARGET', 'dev') }}"
@@ -15,7 +23,7 @@ camrent:
       user: "{{ env_var('DBT_USER') }}"
       password: "{{ env_var('DBT_PASSWORD') }}"
       dbname: "{{ env_var('DBT_DBNAME') }}"
-      schema: "{{ env_var('DBT_SCHEMA', 'analytics') }}"
+      schema: "{{ env_var('DBT_SCHEMA_DEV', env_var('DBT_SCHEMA', 'analytics')) }}"
       threads: 4
     prod:
       type: postgres
@@ -24,5 +32,5 @@ camrent:
       user: "{{ env_var('DBT_USER') }}"
       password: "{{ env_var('DBT_PASSWORD') }}"
       dbname: "{{ env_var('DBT_DBNAME') }}"
-      schema: "{{ env_var('DBT_SCHEMA', 'analytics') }}"
+      schema: "{{ env_var('DBT_SCHEMA_PROD', 'analytics_prod') }}"
       threads: 4

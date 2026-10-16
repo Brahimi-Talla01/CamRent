@@ -8,11 +8,12 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Audit et plan de réalignement** (2026-10-15) : audit en lecture seule des phases 00-07 et plan validé dans `context/plans/camrent-audit-and-realignment-plan.md` (branche `chore/audit-realignement`). Les 10 décisions d'arbitrage ont été validées par le porteur du projet ; elles sont consignées dans la section « Recadrage produit — décisions validées » ci-dessous ; le suivi d'exécution par lot vit au §14 du plan.
 - **Lots A1 et A2 terminés et vérifiés (2026-10-15)** — détails en « Completed » ci-dessous. A1 = décisions actées dans la documentation ; A2 = registre de modèles gouverné (promotion approuvée explicitement, version servie épinglée dans `ml/models/champion.json`, hash de dataset complet, emplacement d'artefacts épinglé). Vérifications : `ruff` 0 erreur, `pytest` **161 réussis / 1 ignoré**, refus de promotion sans approbation (exit 1, registre inchangé) puis promotion `rent-model-v3` avec approbation. Specs de cadrage 13/14/15 créées (reste du lot 0). Ces lots sont portés par la **PR #33** (branche `chore/audit-realignement` → `develop`).
 - **Lot B — qualité et contrat de données terminé, vérifié et mergé (2026-10-16, PR #35)** — détails en « Completed » ci-dessous. Périmètre : provenance d'ingestion (version de connecteur, empreinte de contenu, statut de validation), quarantaine et métadonnées de lot interrogeables en base, `mart_data_quality` et `mart_ingestion_lots`, colonne `rent_semantics`, contrôle des bornes de pièces. Vérifications : `ruff` 0 erreur ; `pytest` **175 réussis / 1 ignoré** en local (le test Parquet reste ignoré sans `pyarrow`) et **176 réussis / 0 ignoré** en CI ; `dbt build` **137/137** (16 modèles, 121 tests dont 6 singuliers) ; contrôles `psql` sur les volumes et l'invariant de publication.
-- **Prochaine étape : lot C — CI de données** (service PostgreSQL et `dbt build` en CI, backend de build figé, `.env.example` aligné sur le port 5433, schémas dbt `dev`/`prod` séparés). **La Phase 8 n'est pas encore démarrée** : elle suivra en deux temps (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
+- **Lot C — CI de données terminé et vérifié (2026-10-16)** — détails en « Completed » ci-dessous. Périmètre : tests de données (`dbt build`) en CI sur un service PostgreSQL avec jeu synthétique déterministe, backend de build figé (`pyproject.toml`), profils dbt `dev`/`prod` séparés, `.env.example` complété. Vérifications : `ruff` 0 erreur ; `pytest` **182 réussis / 0 ignoré** en local (`pyarrow` installé dans le venv — critère §8.1) ; chaîne complète en base jetable `camrent_ci` : 360/48/3 lignes chargées → `dbt build` **137/137** ; paquet installé et importable hors dépôt.
+- **Prochaine étape : lot D — Phase 8 en deux temps** (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
 
 ## Current Goal
 
-- **Lot C — CI de données** : exécuter `dbt build` (16 modèles, 121 tests) sur un service PostgreSQL en intégration continue, figer le backend de build, aligner `.env.example` (5433) et séparer les schémas dbt `dev`/`prod` — pour que les invariants de données (N ≥ 30, bornes, motifs de rejet, sémantique de cible) soient protégés automatiquement, et non par des exécutions locales.
+- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 ») : **08a API publique** (prédiction, marché, comparaison — modèle épinglé, payload strict limité aux champs réellement collectés) puis **08b API interne** (permissions, jobs, administration) — pour exposer le modèle et les données de marché selon la spec 08, les invariants de données étant désormais protégés en CI par le lot C.
 
 ## Completed
 
@@ -231,6 +232,33 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     vaudra `unknown` pour une future source sans prix interprétable ; les lots antérieurs au 2026-10-16
     n'ont pas de provenance (absence signalée, jamais comblée).
 
+- **Lot C — CI de données (2026-10-16)** (plan §10 « Lot 3 », décision 8, écarts P7/P8) :
+  - **CI de données** : `.github/workflows/ci.yml` gagne un service PostgreSQL 16 (base
+    `camrent_ci`, mot de passe de service éphémère — aucun secret dans le dépôt) et trois
+    étapes après `ruff`/`pytest` : génération du jeu synthétique, `pipelines load`, puis
+    `dbt build` dans le schéma jetable `analytics_ci` (exercice du levier `DBT_SCHEMA_DEV`).
+    Le commentaire « `dbt build` hors CI » est retiré (devenu faux) ; les étapes suivantes
+    (integration tests, build front, déploiement) restent explicitement reportées aux phases 8/9/12.
+  - **Jeu synthétique CI** : `tests/data/make_synthetic_dataset.py` — déterministe (graine
+    fixe), reproduit une collecte locale **sans réseau ni donnée tierce** (le jeu réel est un
+    dépôt sans licence : redistribution interdite) et refuse d'écrire sous `data/` réel ;
+    6 tests (`tests/unit/test_ci_dataset.py`) verrouillent le contrat Phase 4 (colonnes,
+    bornes, accepted values, unicité, déterminisme).
+  - **Backend de build figé** : `pyproject.toml` gagne `[build-system]` (setuptools) et la
+    déclaration explicite des paquets du layout plat — critère §8.2 « le paquet s'installe » :
+    installable et importable hors dépôt (vérifié dans un venv isolé).
+  - **Schémas dbt `dev`/`prod`** (P8) : `profiles.yml` sépare `dev` → `analytics`
+    (fallback `DBT_SCHEMA`) et `prod` → `analytics_prod` (`DBT_SCHEMA_PROD`) ; les deux
+    cibles n'écrivent plus jamais dans le même schéma, **sans migration** : le schéma
+    `analytics` local est intact (le premier `dbt build --target prod` créera `analytics_prod`).
+  - `.env.example` : `DBT_TARGET` et `DBT_SCHEMA_DEV`/`DBT_SCHEMA_PROD` documentés
+    (port 5433 déjà conforme au critère §8.2).
+  - **Vérifications** : `ruff` 0 erreur ; `pytest` **182 réussis / 0 ignoré** en local
+    (`pyarrow`, dépendance cœur, installé dans le venv — critère §8.1) ; YAML du workflow et
+    TOML validés ; chaîne complète rejouée en base/schéma jetables `camrent_ci`/`analytics_ci` :
+    360 lignes silver + 48 quarantaine + 3 lots → `pipelines load` OK → `dbt build`
+    **137/137** ; paquet installé et importable hors dépôt.
+
 - **Harmonisation documentaire face au plan (2026-10-15)** — revue de cohérence de tous les documents de suivi (`context/`, `docs/`, READMEs) contre le plan validé, corrections validées par le porteur du projet :
   - specs `06`/`08`/`09` alignées sur les features réellement disponibles (payload API et formulaire sans `area_m2`/`parking`/`gated`) et le découpage 08a/08b puis 09a/09b ;
   - `project-overview.md` : variables MVP séparées (disponibles aujourd'hui / hors périmètre tant que non collectées) ;
@@ -240,14 +268,10 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## In Progress
 
-- **Aucun lot en cours.** Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé, le skip ne vaut que dans le venv local). La branche a été supprimée après fusion.
+- **Aucun lot en cours.** Le lot C est **terminé et vérifié** : PR en cours de vérification (pipeline) sur la branche `chore/ci-data-tests-on-postgres`. Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). La branche a été supprimée après fusion.
 
 ## Next Up
 
-- **Lot C — CI de données** (plan §10 « Lot 3 ») : service PostgreSQL et `dbt build` en CI, backend de build figé,
-  `.env.example` aligné sur le port 5433, schémas dbt `dev`/`prod` séparés. Inclut le critère de la §8.1 du plan :
-  **0 test ignoré** dans l'environnement de référence (installer `pyarrow`, absent du venv local — c'est le seul test
-  encore ignoré de la suite).
 - **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 ») : **08a API publique** (prédiction, marché, comparaison — modèle
   **épinglé**) puis **08b API interne** (permissions, jobs, accès administrateur).
 - **Lot E — prix censurés** : adapter la cible et l'intervalle, par une expérience **mesurée**, après
@@ -338,5 +362,10 @@ fichier versionné `ml/models/champion.json`.
   `rent_semantics` (rappel : le hash de dataset MLflow couvre **tout** le contenu du mart depuis le
   lot A2, une nouvelle colonne change donc la version de dataset — les métriques publiées des
   phases 5-6 n'ont pas été recalculées par ce lot).
+- **Lot C (2026-10-16)** : en base jetable `camrent_ci`, le jeu synthétique charge
+  `landing.silver_listings` 360 · `landing.quarantine_listings` 48 · `landing.ingestion_runs` 3 lots,
+  puis `dbt build` **137/137** dans le schéma `analytics_ci` — le schéma `analytics` réel est
+  inchangé. `pyarrow` installé dans le venv local : la suite entière passe à **182 / 0 ignoré**
+  (elle ne s'arrêtait plus qu'à cause d'une dépendance cœur manquante, pas d'un test défaillant).
 - **Phase 7** : `mlflow-skinny` 3.17.1 (Python 3.14) — `alembic` et `skops` sont nécessaires en plus du `mlflow-skinny` ; base de registre `mlflow` créée une fois dans le conteneur (`createdb -U camrent mlflow`) ; l'URI de suivi est **dérivée de `DATABASE_URL`** — jamais via `str(URL)` (SQLAlchemy masquerait le mot de passe en `***`) ; la création des tables MLflow est très lente sur SQLite (~100 s) alors qu'elle est immédiate sur PostgreSQL.
 - **Lot A2 (2026-10-15)** : promotion non approuvée refusée **avant toute écriture** (vérifié en CLI : 2 versions inchangées, aucun fichier épinglé créé, exit 1) ; avec `--confirm-promotion --approved-by` : création de `rent-model-v3`, alias `champion` → v3, tags `approuve_par`/`approuve_le`, écriture de `ml/models/champion.json` ; registre à **3 versions** (v1 rejeu du 2026-10-14, v2, v3). Le fichier `ml/models/champion.json` est le **seul** artefact de modèle versionné (`git check-ignore` exit 1) ; `ml/artifacts/mlflow` est ignoré. `stash@{0}` conserve les anciens rapports régénérés (phases 6-7) ; aucun commit ni push.

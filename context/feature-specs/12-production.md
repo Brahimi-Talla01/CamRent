@@ -4,6 +4,13 @@ Lire `context/architecture-context.md` avant de commencer.
 
 Objectif : rendre CamRent déployable, testé, sécurisé et maintenable.
 
+> **Statut (2026-10-16)** : avancé par le lot C du plan de réalignement — la CI exécute
+> désormais lint, tests unitaires **et tests de données** (`dbt build` sur un service
+> PostgreSQL, avec un jeu synthétique déterministe), le backend de build de `pyproject.toml`
+> est figé (paquet installable) et les schémas dbt `dev` / `prod` sont séparés
+> (`analytics` / `analytics_prod`, non destructif). Restent à leurs phases : tests
+> d'intégration (08), build frontend (09), déploiement (`cd.yml`).
+
 ## Implementation
 
 1. **Environnements** — trois environnements :

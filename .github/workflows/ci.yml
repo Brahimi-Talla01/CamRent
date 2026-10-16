@@ -14,30 +14,54 @@ jobs:
   ci:
     name: CI
     runs-on: ubuntu-latest
+
+    # Service PostgreSQL : permet d'exécuter les **tests de données** (`dbt build`,
+    # 16 modèles + 121 tests) en CI, conformément au lot C du plan de réalignement
+    # (§7.10 / §8.2, décision 8). La CI ne se contente plus de valider le lint et
+    # les tests unitaires : elle vérifie aussi les invariants de données.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: camrent
+          # Mot de passe de service éphémère : aucun secret réel dans le dépôt (AGENTS.md §9).
+          POSTGRES_PASSWORD: change-me
+          POSTGRES_DB: camrent_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Racine de données dédiée à la CI
+        # Définie en GITHUB_ENV (et non en env de job) : le contexte `runner`
+        # n'est pas lisible au niveau job. Le jeu synthétique n'atteint jamais
+        # `data/` du projet (ignoré par git, mais jamais écrasable : cf. le refus
+        # intégré au générateur).
+        run: echo "CAMRENT_DATA_ROOT=$RUNNER_TEMP/camrent-ci-data" >> "$GITHUB_ENV"
 
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
+          # Fichier de dépendances explicite : le dépôt n'a pas de requirements.txt.
+          cache-dependency-path: pyproject.toml
 
-      - name: Install tooling
+      - name: Install package (backend de build figé)
         run: |
           python -m pip install --upgrade pip
-          # Dépendances d'exécution nécessaires aux tests : `sqlalchemy` est requise
-          # par le chargeur Silver → PostgreSQL (Phase 4), `scikit-learn` par les
-          # métriques des baselines ML (Phase 5) et le zoo de candidats de la
-          # Phase 6, `lightgbm` par l'un des candidats de la Phase 6 (optionnel au
-          # runtime, mais le zoo doit pouvoir être testé), `mlflow-skinny` (+ `alembic`
-          # et `skops`) par le suivi et le registre (Phase 7, testés sur un backend
-          # SQLite temporaire — aucun serveur MLflow requis). Elles sont testées avec des moteurs/données
-          # simulés (aucune base requise en CI).
-          # (l'installation du paquet via pyproject sera activée quand le backend de
-          # build sera figé).
-          pip install ruff pytest requests pandas pyarrow sqlalchemy scikit-learn lightgbm mlflow-skinny alembic skops
+          # Le paquet est installable depuis `pyproject.toml` (lot C) : les extras
+          # regroupent l'outillage (ruff, pytest), les transformations dbt
+          # (dbt-postgres) et le ML (scikit-learn, lightgbm, mlflow-skinny, alembic,
+          # skops) — mêmes dépendances qu'auparavant, déclarées une seule fois.
+          pip install -e '.[dev,transform,ml]'
 
       - name: Lint (ruff)
         run: ruff check .
@@ -45,11 +69,35 @@ jobs:
       - name: Tests unitaires (pytest)
         run: pytest -q
 
-      # Étapes à activer aux phases suivantes (Plan Technique §53) :
-      # - data tests dbt (`dbt build`)      → nécessitent PostgreSQL, exécutés
-      #   hors CI au MVP (Phase 10 — orchestration) ; la CI ne valide que le
-      #   lint et les tests unitaires.
-      # - contrôles Pandera sur le Silver    → option du Plan §26, non retenue
-      #   au MVP (les tests dbt couvrent les marts).
-      # - integration tests                 → Phase 8
-      # - build frontend (Next.js)          → Phase 9
+      # --- Tests de données (lot C) ------------------------------------
+      # Aucune donnée réelle n'est versionnable : `data/raw/`, `data/processed/`
+      # et `data/samples/` sont ignorés, et le jeu local est un dépôt tiers sans
+      # licence (redistribution interdite). La CI fabrique donc un jeu
+      # synthétique déterministe et le fait passer par la chaîne réelle.
+      - name: Jeu de données synthétique
+        run: python -m tests.data.make_synthetic_dataset --data-root "$CAMRENT_DATA_ROOT"
+
+      - name: Chargement dans PostgreSQL (landing)
+        env:
+          DATABASE_URL: postgresql://camrent:change-me@localhost:5432/camrent_ci
+        run: python -m pipelines load
+
+      - name: Tests de données (dbt build)
+        env:
+          DBT_TARGET: dev
+          DBT_HOST: localhost
+          DBT_PORT: "5432"
+          DBT_USER: camrent
+          DBT_PASSWORD: change-me
+          DBT_DBNAME: camrent_ci
+          # Schéma dédié à la CI : l'exercice du levier `DBT_SCHEMA_DEV` (séparation
+          # dev / prod du lot C) est vérifié à chaque exécution.
+          DBT_SCHEMA_DEV: analytics_ci
+        run: cd dbt && dbt build --no-version-check
+
+      # Étapes restant à activer aux phases suivantes (Plan Technique §53) :
+      # - contrôles Pandera sur le Silver → option du Plan §26, non retenue au MVP
+      #   (les tests dbt couvrent les marts) ;
+      # - integration tests  → Phase 8 (API) ;
+      # - build frontend (Next.js) → Phase 9 ;
+      # - déploiement → Phase 12 (voir `cd.yml`).

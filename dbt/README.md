@@ -9,9 +9,11 @@ Flux : `landing.silver_listings` → `staging.stg_listings` →
 → `mart_data_quality`, et `landing.ingestion_runs` → `staging.stg_ingestion_runs`
 → `mart_ingestion_lots`.
 
-En base, les schémas sont préfixés par le schéma de profil (`DBT_SCHEMA`,
-défaut `analytics`) : `analytics_staging`, `analytics_intermediate`,
-`analytics_marts`. Les trois tables d'atterrissage (`landing.silver_listings`,
+En base, les schémas sont préfixés par le schéma de la cible dbt : avec la cible
+`dev` (défaut), `analytics_staging`, `analytics_intermediate`, `analytics_marts`.
+La cible `prod` écrit dans `analytics_prod_*` — depuis le lot C, `dev` et `prod`
+ne partagent **jamais** un schéma (séparation non destructive, `DBT_SCHEMA_DEV` /
+`DBT_SCHEMA_PROD`, `analytics` existant intact). Les trois tables d'atterrissage (`landing.silver_listings`,
 `landing.quarantine_listings`, `landing.ingestion_runs`) sont créées hors dbt,
 par `python -m pipelines load`.
 
@@ -27,11 +29,12 @@ export DBT_PORT=5433
 export DBT_USER=camrent
 export DBT_PASSWORD=change-me
 export DBT_DBNAME=camrent
-export DBT_SCHEMA=analytics     # optionnel (défaut : analytics)
+export DBT_SCHEMA=analytics     # optionnel (défaut : analytics, fallback de DBT_SCHEMA_DEV
+                                # — voir .env.example pour DBT_TARGET / DBT_SCHEMA_DEV / DBT_SCHEMA_PROD)
 ```
 
 Ou simplement : `source .env` puis adapter `DATABASE_URL` → les variables
-`DBT_*` (voir `.env.example` à l'avenir pour les defaults).
+`DBT_*` (`.env.example` documente toutes les valeurs par défaut).
 
 ## Utilisation
 

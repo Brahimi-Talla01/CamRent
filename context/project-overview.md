@@ -139,7 +139,7 @@ Issues de l'audit et du recadrage (détail : `context/plans/camrent-audit-and-re
   **mesurée**, au lieu d'exclure ou de pondérer sans mesure.
 - **Registre des modèles** : MLflow est conservé ; une promotion est **approuvée explicitement par un
   administrateur**, et la version servie est épinglée dans un fichier versionné.
-- **CI** : les tests de données (`dbt build`) seront exécutés sur PostgreSQL en intégration continue.
+- **CI** : les tests de données (`dbt build`) sont exécutés sur PostgreSQL en intégration continue (service PostgreSQL + jeu synthétique déterministe, lot C du plan de réalignement).
 
 ## Documents de référence
 

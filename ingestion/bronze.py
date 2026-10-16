@@ -9,6 +9,11 @@ Contrôles demandés par la spec Phase 1 §4 :
 - les métadonnées du lot existent et concordent (volume).
 
 Ces contrôles ne modifient jamais les données : ils rapportent un état.
+
+Deux points d'entrée : ``check_lot()`` pour **un** lot (utilisé à la collecte,
+avant l'écriture des métadonnées, pour consigner un statut de validation réel) et
+``run_validations()`` pour l'ensemble de ``data/raw/`` — ce dernier ajoute le
+contrôle de fraîcheur et la concordance avec les métadonnées de lot.
 """
 
 from __future__ import annotations
@@ -97,59 +102,100 @@ def _check_freshness(records_by_file: dict[str, list[dict]]) -> Check:
     return Check("fraîcheur", ok, f"collecte la plus récente : il y a {age_days} jour(s)")
 
 
+def _lot_checks(
+    rel: str,
+    *,
+    size: int,
+    records: list[dict],
+    errors: list[str],
+    declared_count: int | None,
+    expect_metadata: bool,
+) -> list[Check]:
+    """Contrôles Bronze d'un lot déjà lu (fonction pure, testable seule)."""
+    checks = [
+        Check("existence", size > 0, rel if size > 0 else f"{rel} est vide"),
+        Check("format JSON", not errors, f"{rel} ({len(errors)} ligne(s) invalide(s))"),
+        Check(
+            "volume",
+            len(records) >= config.MIN_REASONABLE_RECORDS,
+            f"{rel} : {len(records)} observation(s)",
+        ),
+    ]
+
+    missing = [
+        key for key in REQUIRED_KEYS if any(key not in record for record in records)
+    ]
+    checks.append(Check("clés requises", not missing, f"{rel} manque : {missing or '—'}"))
+
+    if expect_metadata:
+        if declared_count is None:
+            checks.append(Check("métadonnées", False, f"aucune métadonnée pour {rel}"))
+        else:
+            checks.append(
+                Check(
+                    "métadonnées",
+                    declared_count == len(records),
+                    f"{rel} : déclaré={declared_count} réel={len(records)}",
+                )
+            )
+    return checks
+
+
+def check_lot(raw_path: Path, *, expect_metadata: bool = False) -> BronzeReport:
+    """Contrôles Bronze d'**un seul** lot, sans ses métadonnées par défaut.
+
+    Utilisé à la collecte (les métadonnées du lot ne sont pas encore écrites) et
+    par ``run_validations()`` pour chaque fichier brut.
+
+    Args:
+        raw_path: fichier brut JSONL.
+        expect_metadata: exiger la présence et la concordance des métadonnées du
+            lot (impossible avant leur écriture — d'où ``False`` par défaut).
+    """
+    rel = str(raw_path.relative_to(config.RAW_ROOT))
+    records, errors = _read_jsonl(raw_path)
+    metadata = _load_metadata_index().get(rel) if expect_metadata else None
+    declared = metadata.get("record_count") if metadata else None
+    return BronzeReport(
+        _lot_checks(
+            rel,
+            size=raw_path.stat().st_size,
+            records=records,
+            errors=errors,
+            declared_count=declared,
+            expect_metadata=expect_metadata,
+        )
+    )
+
+
 def run_validations() -> BronzeReport:
     """Exécute l'ensemble des contrôles Bronze sur `data/raw/`."""
-    checks: list[Check] = []
-    raw_files = list(storage.iter_raw_files())
+    raw_files = sorted(storage.iter_raw_files())
 
     if not raw_files:
-        checks.append(Check("présence", False, "aucun fichier brut dans data/raw/"))
-        return BronzeReport(checks)
+        return BronzeReport(
+            [Check("présence", False, "aucun fichier brut dans data/raw/")]
+        )
 
     metadata_index = _load_metadata_index()
+    checks: list[Check] = []
     records_by_file: dict[str, list[dict]] = {}
 
     for path in raw_files:
         rel = str(path.relative_to(config.RAW_ROOT))
         records, errors = _read_jsonl(path)
         records_by_file[rel] = records
-
-        size = path.stat().st_size
-        checks.append(
-            Check("existence", size > 0, rel if size > 0 else f"{rel} est vide")
-        )
-        checks.append(
-            Check("format JSON", not errors, f"{rel} ({len(errors)} ligne(s) invalide(s))")
-        )
-        checks.append(
-            Check(
-                "volume",
-                len(records) >= config.MIN_REASONABLE_RECORDS,
-                f"{rel} : {len(records)} observation(s)",
+        metadata = metadata_index.get(rel)
+        checks.extend(
+            _lot_checks(
+                rel,
+                size=path.stat().st_size,
+                records=records,
+                errors=errors,
+                declared_count=metadata.get("record_count") if metadata else None,
+                expect_metadata=True,
             )
         )
-
-        missing = [
-            key
-            for key in REQUIRED_KEYS
-            if any(key not in record for record in records)
-        ]
-        checks.append(
-            Check("clés requises", not missing, f"{rel} manque : {missing or '—'}")
-        )
-
-        meta = metadata_index.get(rel)
-        if meta is None:
-            checks.append(Check("métadonnées", False, f"aucune métadonnée pour {rel}"))
-        else:
-            declared = meta.get("record_count")
-            checks.append(
-                Check(
-                    "métadonnées",
-                    declared == len(records),
-                    f"{rel} : déclaré={declared} réel={len(records)}",
-                )
-            )
 
     checks.append(_check_freshness(records_by_file))
     return BronzeReport(checks)

@@ -1,8 +1,10 @@
-# Pipelines — construction du Silver dataset (Phase 2)
+# Pipelines — Silver dataset (Phase 2) et chargement en base (Phase 4)
 
 Lit le **Raw immuable** (`data/raw/`) et produit des jeux nettoyés et standardisés
 dans `data/processed/` : `silver_listings.parquet`, `quarantine_listings.parquet`.
-Voir `context/feature-specs/02-data-cleaning.md`.
+Le module `db.py` charge ensuite ces artefacts — et les métadonnées de collecte —
+dans PostgreSQL (schéma `landing`).
+Voir `context/feature-specs/02-data-cleaning.md` et `context/feature-specs/04-data-marts.md`.
 
 ## Principe
 
@@ -38,6 +40,9 @@ Geloka est **ignoré** ici : ce sont des médianes agrégées, pas des annonces.
 6. **Déduplication** : doublon technique (`source`+`source_listing_id`) supprimé ;
    même logement republié conservé et marqué `is_republication`.
 7. **Aberrations** : hors bornes plausibles → `outlier_flags` (jamais supprimées).
+   La borne de pièces est `ROOMS_MAX_PLAUSIBLE` (10 par défaut) : `bathrooms = 80`
+   sur 3 observations est conservé et signalé `bathrooms_outlier` — le signalement
+   est contrôlé par le test dbt `assert_implausible_rooms_are_signalled`.
 8. **Quarantine** : ville inconnue, quartier vide, type inconnu, prix absent/≤ 0.
 
 ## Utilisation
@@ -46,11 +51,26 @@ Geloka est **ignoré** ici : ce sont des médianes agrégées, pas des annonces.
 # nécessite pandas + pyarrow pour l'écriture Parquet
 python -m pipelines silver --report docs/phase-2/cleaning-report.md
 
-# Phase 4 : charger le Silver dans PostgreSQL (DATABASE_URL requis)
+# Phase 4 : charger les tables d'atterrissage dans PostgreSQL (DATABASE_URL requis)
+#   landing.silver_listings · landing.quarantine_listings · landing.ingestion_runs
 python -m pipelines load
 ```
 
-Options : `--raw-root`, `--out-dir`, `--report`.
+Options : `--raw-root`, `--out-dir`, `--report`, `--silver-path`, `--quarantine-path`.
+
+## Chargement en base (`db.py`) — Phase 4
+
+`python -m pipelines load` charge **trois** tables d'atterrissage (lot B pour les
+deux dernières) :
+
+| Table | Contenu | Pourquoi |
+|---|---|---|
+| `landing.silver_listings` | Le Silver nettoyé (2 992 lignes) | Alimenter les modèles dbt |
+| `landing.quarantine_listings` | Les **rejets** avec leur motif (78 lignes) | Rendre la qualité interrogeable en base (module « Qualité », Phase 11) |
+| `landing.ingestion_runs` | Les **métadonnées de lot** (un lot par ligne) | Rendre la provenance traçable (version de connecteur, empreinte, statut) |
+
+Chaque table est **vidée puis remplie** (`TRUNCATE` + insertion) : rejouable, jamais
+`DROP` (les vues dbt qui en dépendent survivent au rejeu).
 
 ## Sorties
 
@@ -68,6 +88,7 @@ le Raw).
 ```
 pipelines/
 ├── config.py     # chemins, seuils, schéma Silver
+├── db.py         # chargement des tables d'atterrissage (Silver, quarantaine, lots)
 ├── geo.py        # référentiel villes/quartiers (seed) + résolution
 ├── parsing.py    # prix, chambres, surface, type, oui/non
 ├── adapters.py   # Raw → Candidate (par source)

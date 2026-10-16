@@ -4,12 +4,16 @@ Transforme le Silver (chargé dans PostgreSQL par `python -m pipelines load`)
 en faits, dimensions et marts prêts pour l'API, l'analyse et le ML.
 
 Flux : `landing.silver_listings` → `staging.stg_listings` →
-`intermediate.int_clean_listings` → marts (`schema marts/`).
+`intermediate.int_clean_listings` → marts (`schema marts/`), et — depuis le lot B
+(qualité et provenance) — `landing.quarantine_listings` → `staging.stg_quarantine`
+→ `mart_data_quality`, et `landing.ingestion_runs` → `staging.stg_ingestion_runs`
+→ `mart_ingestion_lots`.
 
 En base, les schémas sont préfixés par le schéma de profil (`DBT_SCHEMA`,
 défaut `analytics`) : `analytics_staging`, `analytics_intermediate`,
-`analytics_marts`. Seule la table d'atterrissage (`landing.silver_listings`)
-est créée hors dbt, par `python -m pipelines load`.
+`analytics_marts`. Les trois tables d'atterrissage (`landing.silver_listings`,
+`landing.quarantine_listings`, `landing.ingestion_runs`) sont créées hors dbt,
+par `python -m pipelines load`.
 
 ## Prérequis
 
@@ -51,7 +55,8 @@ dbt/
 ├── tests/                 # tests singuliers (invariants trop complexes pour
 │                          #   un test de colonne)
 └── models/
-    ├── staging/           # stg_listings + sources.yml (+ tests)
+    ├── staging/           # stg_listings, stg_quarantine, stg_ingestion_runs
+    │                      #   + sources.yml (+ tests)
     ├── intermediate/      # int_clean_listings (+ tests)
     └── marts/             # dim_*, fct_*, mart_* (+ schema de tests)
 ```
@@ -61,6 +66,8 @@ dbt/
 | Modèle | Grain | Rôle |
 |---|---|---|
 | `stg_listings` | 1 ligne Silver | typage, `listing_key` |
+| `stg_quarantine` | 1 observation rejetée | quarantaine typée + motif |
+| `stg_ingestion_runs` | 1 lot brut | lots typés + `has_provenance` |
 | `int_clean_listings` | 1 ligne Silver | enrichissement minimal |
 | `dim_city` | ville | dimension + volume d'observations |
 | `dim_neighborhood` | (ville, quartier) | dimension ; `is_canonical` signale le référentiel |
@@ -71,7 +78,9 @@ dbt/
 | `mart_neighborhood_prices` | (ville, quartier, type, chambres) | stats + N |
 | `mart_city_prices` | ville | stats + N |
 | `mart_property_prices` | (type, ville) | stats + N |
-| `mart_ml_dataset` | 1 ligne Silver | features MVP + cible `target_rent_price` |
+| `mart_data_quality` | (source, motif) | motifs de rejet agrégés + volumes |
+| `mart_ingestion_lots` | 1 lot brut | lots + provenance (version, empreinte, validation) |
+| `mart_ml_dataset` | 1 ligne Silver | features MVP + cible `target_rent_price` + `rent_semantics` |
 
 ## Gardes-fous codés dans les modèles
 
@@ -84,7 +93,14 @@ dbt/
   (`is_republication`, `price_is_bound`, `neighborhood_recognized`,
   `outlier_flags`).
 - `mart_ml_dataset` ne contient **pas** de `rent_per_m2` (anti-leakage) ;
-  `rent_price` devient `target_rent_price`.
+  `rent_price` devient `target_rent_price`, accompagné de `rent_semantics`
+  (`asking_rent` / `unknown`) pour que la sémantique de la cible soit **lue dans
+  les données**, jamais supposée.
+- `mart_data_quality` accompagne chaque part de rejets de son **nombre de rejets**
+  et du total de la source (invariant 8) ; aucun rejet n'est masqué.
+- `mart_ingestion_lots` signale par `has_provenance` les lots antérieurs à la
+  version de connecteur et à l'empreinte de contenu : l'absence est visible, pas
+  comblée par une valeur inventée.
 
 ## Tests
 
@@ -101,5 +117,18 @@ dbt/
 - Invariant de publication :
   `assert_median_published_only_at_or_above_threshold` échoue si une médiane de
   quartier est publiée sous `min_publish_n` ou absente au-dessus.
+- Bornes de pièces (spec 02 §12) : `assert_implausible_rooms_are_signalled`
+  échoue si un `bedrooms` / `bathrooms` au-delà de la borne documentée
+  (var `rooms_max_plausible`, défaut 10) apparaît **sans** son drapeau
+  `_outlier` dans `outlier_flags`. La valeur reste dans les données : c'est le
+  **signalement** qui est contrôlé, pas la suppression. Exemple réel conservé :
+  `bathrooms = 80` (3 observations).
+- Qualité (lot B) : `assert_data_quality_motifs_sum_to_quarantine_total`
+  (la somme des motifs égale la quarantaine réelle — aucun rejet perdu dans
+  l'agrégation) et `assert_data_quality_grain_is_unique` (grain
+  source × motif).
+- Sémantique de cible : `assert_rent_semantics_matches_target` (une observation
+  à prix connu est `asking_rent`, une observation sans prix interprétable reste
+  `unknown`).
 - Les tests singuliers vivent dans `dbt/tests/` et échouent en remontant des
   lignes.

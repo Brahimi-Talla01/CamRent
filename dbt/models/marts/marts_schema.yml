@@ -130,6 +130,11 @@ models:
               arguments:
                 min_value: 0
                 max_value: 10
+      # Bornes de pièces : la borne supérieure n'est **pas** un filtre — une
+      # valeur hors bornes plausibles (ex. `bathrooms = 80`, 3 observations
+      # réelles) est conservée et signalée dans `outlier_flags`. Le contrôle du
+      # signalement est porté par le test singulier
+      # `assert_implausible_rooms_are_signalled` (var `rooms_max_plausible`).
       - name: bathrooms
         tests:
           - within_range:
@@ -232,16 +237,95 @@ models:
               arguments:
                 min_value: 0
 
+  - name: mart_data_quality
+    description: >
+      Motifs de rejet agrégés par source (lot B). Grain : une ligne par
+      (source, motif). Chaque ligne porte son nombre de rejets et le total des
+      rejets de la source : jamais un pourcentage sans son volume (invariant 8).
+      Aucun rejet n'est masqué (invariant 5).
+    columns:
+      - name: source_name
+        tests:
+          - not_null
+      - name: quarantine_reason
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['prix_manquant', 'type_inconnu', 'city_inconnue', 'prix_invalide']
+      # Le nombre de rejets n'est pas unique par nature : l'unicité du grain
+      # (source, motif) est portée par le test singulier
+      # `assert_data_quality_grain_is_unique`.
+      - name: n_rejections
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 1
+      - name: n_rejections_source
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 1
+      - name: pct_of_source_rejections
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+
+  - name: mart_ingestion_lots
+    description: >
+      Lots de collecte et leur provenance (lot B). Grain : une ligne par lot
+      brut. Une seule ligne est unique par `raw_file` ; `has_provenance` est
+      faux pour les lots antérieurs à la version du connecteur et à l'empreinte
+      de contenu — l'absence est signalée, pas inventée.
+    columns:
+      - name: raw_file
+        tests:
+          - unique
+          - not_null
+      - name: source_name
+        tests:
+          - not_null
+      - name: record_count
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: lot_validation_status
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['ok', 'failed', 'unreadable']
+      - name: has_provenance
+        tests:
+          - not_null
+
   - name: mart_ml_dataset
     description: >
-      Dataset ML : features du MVP + cible `target_rent_price`. Sans
-      `rent_per_m2` (data leakage) ; drapeaux qualité exposés pour
-      pondération/exclusion explicite en Phase 5-6.
+      Dataset ML : features du MVP + cible `target_rent_price` + sémantique
+      explicite de la cible (`rent_semantics`). Sans `rent_per_m2` (data
+      leakage) ; drapeaux qualité exposés pour pondération/exclusion explicite
+      en Phase 5-6.
     columns:
       - name: listing_key
         tests:
           - unique
           - not_null
+      - name: rent_semantics
+        description: >
+          Sémantique de la cible : `asking_rent` (loyer demandé dans l'annonce)
+          ou `unknown` (sémantique non établie). La cible `target_rent_price`
+          n'est pas renommée.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['asking_rent', 'unknown']
       - name: city
         tests:
           - not_null

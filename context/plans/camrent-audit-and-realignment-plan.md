@@ -1,7 +1,7 @@
 # CamRent — Audit du projet et plan de réalignement
 
-**Statut :** **validé** par le porteur du projet le 2026-10-15 (10 décisions, §9) ; lots A1 (documentation) et A2 (registre gouverné) exécutés et vérifiés — suivi au **§14**
-**Date :** 2026-10-15 (mis à jour le 2026-10-15 après exécution des lots A1 et A2)
+**Statut :** **validé** par le porteur du projet le 2026-10-15 (10 décisions, §9) ; lots A1 (documentation), A2 (registre gouverné) et B (qualité et contrat de données) exécutés et vérifiés — suivi au **§14**
+**Date :** 2026-10-15 (mis à jour le 2026-10-16 après exécution du lot B)
 **Branche de travail :** `chore/audit-realignement` (tirée de `develop`, commit `051bf26`)
 **Périmètre de cette étape :** lecture seule — aucun code, aucune migration, aucune spécification
 existante n'a été modifié
@@ -518,6 +518,12 @@ tracker après vérification, conformément à `AGENTS.md` §2 et §6.
 
 ### 11.1 Faits constatés (reproductibles, avec leur preuve)
 
+> **Rectificatif (2026-10-16).** Le fait ci-dessous, repris de l'audit et de P3, est **inexact** :
+> `bathrooms = 80` est bien **signalé** (`outlier_flags = bathrooms_outlier`, 3 observations),
+> depuis la Phase 2 (`pipelines/silver.py::_outlier_flags`). Ce qui manquait réellement était le
+> test du signalement — ajouté par le lot B (`assert_implausible_rooms_are_signalled`).
+> Le constat d'audit est conservé tel quel ci-dessous, comme photographie datée.
+
 | Fait                                                                                                                           | Preuve                                                       |
 | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
 | 154 tests réussis, 1 ignoré (`pyarrow` absent du venv local)                                                                   | `pytest tests -q`, `pytest -q -rs`                           |
@@ -635,11 +641,11 @@ docker exec camrent-postgres psql -U camrent -d mlflow -tAc "select name, lifecy
 
 ### 13.3 Prochaine action attendue
 
-**État (2026-10-15) :** le plan a été examiné et **validé** (10 décisions, §9) ; les lots A1 et A2
-sont exécutés et vérifiés (§14). La suite attendue :
+**État (2026-10-16) :** le plan a été examiné et **validé** (10 décisions, §9) ; les lots A1, A2 et
+**B** sont exécutés et vérifiés (§14). La suite attendue :
 
-1. exécution du **lot B** (qualité et contrat de données), puis des lots C, D, E selon l'ordre du
-   §10 et leurs conditions d'entrée ;
+1. exécution du **lot C** (CI de données), puis des lots D, E selon l'ordre du §10 et leurs
+   conditions d'entrée ;
 2. mise à jour de `context/progress-tracker.md` après chaque lot vérifié.
 
 ---
@@ -653,8 +659,8 @@ l'audit. Détail des changements et vérifications dans `context/progress-tracke
 | --- | --- | --- |
 | **Lot 0 → A1** | **Terminé et vérifié (2026-10-15)** | Documentation seule : décisions actées dans `context/progress-tracker.md` (section « Recadrage produit — décisions validées »), `context/project-overview.md` (extensions retenues, décisions de périmètre), `context/architecture-context.md` (sous-systèmes A-E, gouvernance du registre), `context/feature-specs/07-model-registry.md` (promotion nominative, épinglage, hash complet). Reste du lot 0 : `docs/phase-3/README.md` et les specs de cadrage **13/14/15**, tous créés le 2026-10-15 (l'implémentation des specs 13/14 reste conditionnée à 08 et 09 — décision 7). |
 | **Lot 1 → A2** | **Terminé et vérifié (2026-10-15)** | Registre gouverné : promotion refusée sans approbation **avant toute écriture** (§7.2), version servie épinglée dans `ml/models/champion.json` versionné (§7.3), hash de dataset couvrant tout le mart (§7.1), emplacement d'artefacts épinglé `ml/artifacts/mlflow` (§7.4), tags `approuve_par`/`approuve_le`. **Ouvert (§7.5)** : hygiène/rétention des runs (84 runs dans `rent_prediction`). Vérifications : `ruff` 0 erreur ; `pytest` **161 réussis, 1 ignoré** ; refus CLI exit 1 avec registre inchangé ; promotion `rent-model-v3` avec approbation ; pin non ignoré par git. |
-| **Lot 2 → B** | À faire | Qualité et contrat de données (§7.6, §7.8, §7.9) : quarantaine et métadonnées en base, table de qualité, `rent_semantics`, bornes `bathrooms`. Condition d'entrée : satisfaite (décision 6 : finaliser d'abord). |
-| **Lot 3 → C** | À faire | CI de données (§7.10, §7.11) : PostgreSQL + `dbt build` en CI, backend de build figé, `.env.example` (5433), schémas `dev`/`prod`. Condition d'entrée : satisfaite (décision 8). |
+| **Lot 2 → B** | **Terminé et vérifié (2026-10-16)** | Qualité et contrat de données (§7.6, §7.7, §7.8, §7.9), exécuté en quatre incréments vérifiés : **B1** provenance d'ingestion (`connector_version`, `content_sha256`, `lot_validation_status` par lot, validation d'un lot avant écriture des métadonnées) ; **B2** quarantaine et métadonnées de lot chargées dans `landing`, marts `mart_data_quality` (motifs agrégés + total par source) et `mart_ingestion_lots` ; **B3** `rent_semantics` (`asking_rent` / `unknown`) dans `mart_ml_dataset` ; **B4** contrôle des bornes de pièces par un test dbt qui **vérifie le signalement** (le signalement existait déjà en Phase 2 — l'affirmation inverse du §1.2/§4 P3 est corrigée). **Vérifications** : `ruff` 0 erreur ; `pytest` **175 réussis / 1 ignoré** ; `dbt build` **137/137** (16 modèles, 121 tests dont 6 singuliers) ; en base : 78 rejets réconciliés par motif, 3 lots, `rent_semantics` sans valeur nulle, volumes et invariant N ≥ 30 inchangés. |
+| **Lot 3 → C** | **Prochain lot** | CI de données (§7.10, §7.11) : PostgreSQL + `dbt build` en CI, backend de build figé, `.env.example` (5433), schémas `dev`/`prod`. Condition d'entrée : satisfaite (décision 8). Inclut le critère §8.1 « 0 test ignoré » (installer `pyarrow`). |
 | **Lot 4 → D** | À faire | Phase 8 en deux temps : **08a** API publique (prédiction, marché, comparaison — modèle épinglé, §7.12) puis **08b** API interne (permissions, jobs). Conditions d'entrée : décisions 3, 4, 5 (prises) + lots B et C livrés. |
 | **Lot 5** | À faire | Phase 9 : 09a estimation publique, 09b administration, `ui-context.md` figé avant code. Condition d'entrée : lot 4. |
 | **Lot E** | À faire | Prix censurés : adapter la cible et l'intervalle par une expérience **mesurée** (décision 4). |

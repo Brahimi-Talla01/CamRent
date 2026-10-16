@@ -28,6 +28,18 @@ data/raw/
 Métadonnées de lot : source, catégorie, méthode, format, date de collecte,
 nombre d'enregistrements, fichier brut, URLs, statut de droits, notes.
 
+**Provenance renforcée** (spec Phase 1 §6) — chaque lot consigne en plus :
+
+- `connector_version` : version du code de collecte/parsing (`ingestion.__version__`) ;
+- `content_sha256` / `content_bytes` : **empreinte** du fichier brut et sa taille,
+  calculées en flux — elles permettent de constater qu'un lot n'a pas été altéré ;
+- `lot_validation_status` / `lot_validation_failures` : résultat des contrôles
+  Bronze évaluables **à la collecte** (existence, format, volume, clés requises).
+
+Le fichier de métadonnées est écrit **une seule fois**, comme le brut : il n'est
+jamais réécrit. Le statut consigné est donc celui du moment de la collecte ; la
+validation complète (qui exige les métadonnées) se fait par `--validate-bronze`.
+
 ## Sources et droits
 
 | Source | Catégorie | Droits | Collecte |
@@ -80,6 +92,10 @@ Réglages par variable d'environnement : `CAMRENT_CONTACT_EMAIL`, `CAMRENT_RATE_
 - présence des clés requises (`source`, `source_listing_id`, `collected_at`) ;
 - concordance métadonnées ↔ nombre de lignes ;
 - fraîcheur de la collecte la plus récente.
+
+`bronze.check_lot()` applique les mêmes contrôles à **un seul** lot, sans exiger
+ses métadonnées : c'est ce que le CLI exécute à la collecte, avant d'écrire les
+métadonnées, pour y consigner un statut de validation réel.
 
 ## Structure du package
 

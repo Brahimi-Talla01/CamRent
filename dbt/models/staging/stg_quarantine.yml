@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_quarantine
+    description: >
+      Vue de staging de la quarantaine de la Phase 2 : une ligne par observation
+      rejetée, avec son motif (`quarantine_reason`). Aucun filtrage : les rejets
+      restent visibles et quantifiables (invariant 5).
+    columns:
+      - name: source_name
+        tests:
+          - not_null
+      - name: quarantine_reason
+        description: Motif du rejet décidé en Phase 2.
+        tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['prix_manquant', 'type_inconnu', 'city_inconnue', 'prix_invalide']
+      - name: listing_key
+        description: Clé technique = md5(source_file | source_listing_id).
+        tests:
+          - not_null

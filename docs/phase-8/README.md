@@ -4,9 +4,11 @@ Objectif (spec : `context/feature-specs/08-api.md`) : exposer le modèle et les 
 marché via une API backend claire, versionnée et reproductible.
 
 La phase 8 est livrée en **deux temps** (plan §10, lot 4) : **08a API publique** puis
-**08b API interne**. Ce document couvre le premier incrément du 08a — le **socle**
-(ticket #50) : structure `backend/`, schémas stricts, erreurs au format unique, route de
-version. Aucun endpoint métier n'est encore exposé.
+**08b API interne**. Ce document couvre les deux premiers incréments du 08a — le
+**socle** (ticket #50 : structure `backend/`, schémas stricts, erreurs au format unique,
+route de version) puis **l'endpoint de prédiction** (ticket #51 : `POST
+/api/v1/predictions`, modèle épinglé, fourchette, `model_version`). Les endpoints de
+marché (#53) et de comparaison (#54) suivent.
 
 ## Livrables du socle (#50)
 
@@ -40,8 +42,59 @@ GET /api/v1/health  →  {"status": "ok", "api_version": "0.1.0", "api_prefix": 
 ```
 
 Le contrat est **versionné** : la route n'existe pas hors `/api/v1` (vérifié : `/health`
-répond 404). `api_version` décrit le contrat, pas le modèle — la version servie sera
-exposée par l'endpoint de prédiction (ticket #51).
+répond 404). `api_version` décrit le contrat, pas le modèle — la version servie est
+exposée par l'endpoint de prédiction (`model_version`, ci-dessous).
+
+## Contrat de prédiction (08a.2, ticket #51)
+
+```
+POST /api/v1/predictions
+```
+
+Entrée (le schéma strict du socle, inchangé) :
+
+```json
+{"city": "Douala", "neighborhood": "Makepe", "property_type": "apartment", "bedrooms": 2, "bathrooms": 2}
+```
+
+Réponse — **réelle**, servie par le modèle épinglé (vérification du 2026-10-17) :
+
+```json
+{
+  "estimated_rent": 109990,
+  "currency": "XAF",
+  "lower_bound": 80000,
+  "upper_bound": 150002,
+  "model_version": "rent-model-v3"
+}
+```
+
+Points de conception :
+
+- **Modèle épinglé, jamais entraîné dans la requête** : le bundle vient de
+  `ml/models/champion.json` — le pipeline est chargé à l'URI de registre épinglée
+  (`model_uri`), pas depuis un fichier local implicite. `model_version` est l'étiquette
+  du pin, identique à chaque réponse tant que le pin ne change pas.
+- **Fourchette par le modèle retenu** : l'intervalle **quantile** 5 % / 95 % déjà
+  calibré en Phase 6, chargé depuis l'artefact local
+  `ml/models/rent_model_v1_intervalle.joblib` (décision du porteur du projet,
+  2026-10-17). Ce fichier n'est pas versionné : s'il manque, le service échoue
+  explicitement plutôt que de servir une estimation sans fourchette — jamais de
+  fourchette improvisée, jamais d'application de pourcentage arbitraire.
+- **Domaine servi** : le service refuse tout couple (ville, quartier) que le modèle
+  chargé n'a jamais vu à l'entraînement — **404 `not_found`**. C'est nécessaire : hors
+  domaine, le pipeline traiterait silencieusement la saisie (profondeur de marché nulle,
+  one-hot ignoré) et produirait une estimation faussement plausible. Une ville ou un type
+  hors vocabulaire reste un **422** du schéma ; le choix 404 / 422 pour une valeur
+  inconnue a été tranché par le porteur du projet (2026-10-17) : 404 pour une valeur
+  inconnue, 422 pour un contrat d'entrée violé.
+- **Cache et démarrage** : le bundle est chargé une seule fois (verrou), au premier appel
+  utile ; l'application démarre et sert la santé sans registre ni artefact joignables.
+
+Vérifications HTTP réelles (serveur `uvicorn`, modèle épinglé v3) : 200 avec fourchette
+ordonnée (80 000 ≤ 109 990 ≤ 150 002 FCFA) ; deux appels identiques → réponses
+**identiques** ; quartier inconnu → 404 `not_found` ; quartier réel mais jamais vu avec
+cette ville → 404 ; `area_m2` → 422 `validation_error` avec le détail du champ.
 
 ### Schéma d'entrée strict
 
@@ -115,6 +168,19 @@ l'appel**. Conséquences voulues et testées :
 | contrat OpenAPI | `paths = ['/api/v1/health']`, titre « CamRent — API publique », version 0.1.0 |
 | fuite technique | test dédié : le message d'une exception interne n'apparaît pas dans la réponse |
 
+Vérifications de l'incrément de prédiction (#51, 2026-10-17) :
+
+| Contrôle | Résultat |
+|---|---|
+| `ruff check .` | 0 erreur |
+| `pytest -q` (suite complète) | **240 réussis** (220 avant l'incrément → +20) |
+| prédiction réelle (modèle épinglé) | **200** — `{"estimated_rent":109990,"currency":"XAF","lower_bound":80000,"upper_bound":150002,"model_version":"rent-model-v3"}` |
+| reproductibilité | deux `POST` identiques → réponses **identiques** |
+| hors domaine | quartier inconnu et quartier jamais vu avec la ville → **404 `not_found`** |
+| champ non collecté | `area_m2` → **422** `validation_error` avec détail par champ |
+| contrat OpenAPI | `paths = ['/api/v1/health', '/api/v1/predictions']` |
+| échec de serving | test : 500 `internal_error` générique, ni chemin ni classe d'exception fuités |
+
 ## Lancer et rejouer
 
 ```bash
@@ -132,13 +198,19 @@ python -m pytest tests/unit/test_api_*.py -q   # tests de l'incrément
 
 ## Limites connues
 
-- **Aucun endpoint métier** : prédiction (#51), marché (#53) et comparaison (#54) restent à
-  livrer ; le socle n'affiche donc encore aucune donnée de marché.
-- **Provenance du modèle** : l'écart mesuré entre le dataset du pin `champion`
-  (`mart_ml_dataset@5050042e720e`) et le mart vivant (`mart_ml_dataset@d3c11c225f48`) est
-  traité par le ticket #52, avant que l'API n'expose `model_version`.
-- **Tests isolés du poste local** : le chargement du modèle épinglé et son fixture de test
-  (emplacements d'artefacts enregistrés en chemins absolus) sont dans le périmètre de #52.
+- **Endpoints restants** : marché (#53) et comparaison (#54) restent à livrer ; l'API
+  n'affiche encore aucune donnée de marché.
+- **Provenance du modèle** : `model_version` est désormais exposé (`rent-model-v3`), et
+  l'écart mesuré entre le dataset du pin `champion` (`mart_ml_dataset@5050042e720e`) et le
+  mart vivant (`mart_ml_dataset@d3c11c225f48`) reste traité par le ticket #52 — l'écart est
+  documenté, jamais silencieux.
+- **Fourchette liée à un artefact local** : l'intervalle calibré vient d'un fichier non
+  versionné (`ml/models/rent_model_v1_intervalle.joblib`) — sa présence est exigée au
+  chargement (erreur explicite sinon), mais un déploiement sur une machine neuve doit le
+  régénérer (`python -m ml.src models`) ou le transférer. Couplage à trancher en #52.
+- **Chargement réel testé en local** : les tests unitaires et la CI utilisent un fixture de
+  modèle isolé (sans registre ni artefact) ; le chargement depuis le registre MLflow n'est
+  exercé que sur le poste de développement. Le fixture de serving durci est le périmètre de #52.
 - **Avertissement de bibliothèque** : `starlette.testclient` signale que l'usage d'`httpx`
   est déprécié au profit d'`httpx2`. Le test fonctionne ; c'est un choix de dépendance à
   réévaluer lors d'une montée de version de Starlette.
@@ -147,7 +219,6 @@ python -m pytest tests/unit/test_api_*.py -q   # tests de l'incrément
 
 | Ticket | Contenu |
 |---|---|
-| #51 | `POST /api/v1/predictions` (modèle épinglé, fourchette, `model_version`) |
 | #52 | Provenance du modèle épinglé + fixture de modèle isolée |
 | #53 | Endpoints de marché (villes, quartiers, prix) — nombre d'observations obligatoire |
 | #54 | Endpoint de comparaison |

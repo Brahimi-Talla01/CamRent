@@ -9,7 +9,7 @@ finalise le MVP d'abord »).
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
@@ -72,4 +72,47 @@ class PredictionRequest(BaseModel):
         ge=vocabulary.ROOMS_MIN,
         le=vocabulary.ROOMS_MAX,
         description=f"Salles de bain. {ROOMS_DESCRIPTION}",
+    )
+
+
+class PredictionResponse(BaseModel):
+    """Estimation indicative du loyer mensuel **demandé**, avec fourchette calibrée.
+
+    L'estimation n'est jamais présentée comme la valeur officielle du bien : elle
+    reflète les prix demandés dans les annonces (spec 08, invariant produit). Les
+    bornes viennent de la régression quantile retenue en Phase 6 (5 % / 95 %),
+    jamais d'un pourcentage appliqué à la prévision.
+    """
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "estimated_rent": 185000,
+                "currency": "XAF",
+                "lower_bound": 165000,
+                "upper_bound": 205000,
+                "model_version": "rent-model-v3",
+            }
+        }
+    )
+
+    estimated_rent: int = Field(
+        ge=1, description="Loyer mensuel demandé estimé en FCFA (valeur indicative)."
+    )
+    currency: Literal["XAF"] = Field(description="Devise unique du projet (FCFA).")
+    lower_bound: int = Field(
+        ge=1,
+        description=(
+            "Borne basse de la fourchette calibrée (5ᵉ percentile, Phase 6), "
+            "plancherée à 1 FCFA."
+        ),
+    )
+    upper_bound: int = Field(
+        ge=1, description="Borne haute de la fourchette calibrée (95ᵉ percentile, Phase 6)."
+    )
+    model_version: str = Field(
+        description=(
+            "Version du modèle épinglée (`ml/models/champion.json`), identique à chaque "
+            "réponse tant que le pin ne change pas."
+        )
     )

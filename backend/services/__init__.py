@@ -1,9 +1,9 @@
 """Logique métier de l'API publique (estimation, marché, comparaison).
 
-Rien n'est encore implémenté ici : le socle du ticket #50 se limite aux schémas, aux
-erreurs et à la route de santé. Ce paquet existe pour que la logique ne se retrouve
-jamais dans les routes — le service d'estimation arrive avec #51, les statistiques de
-marché avec #53, la comparaison avec #54.
+La logique d'estimation vit dans `backend/ml/` (chargement du bundle épinglé et
+estimation, ticket #51) — ce paquet accueillera les services de marché (#53) et
+de comparaison (#54). Il existe pour que la logique ne se retrouve jamais dans les
+routes.
 """
 
 from __future__ import annotations

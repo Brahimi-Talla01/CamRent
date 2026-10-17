@@ -58,10 +58,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Le paquet est installable depuis `pyproject.toml` (lot C) : les extras
-          # regroupent l'outillage (ruff, pytest), les transformations dbt
-          # (dbt-postgres) et le ML (scikit-learn, lightgbm, mlflow-skinny, alembic,
-          # skops) — mêmes dépendances qu'auparavant, déclarées une seule fois.
-          pip install -e '.[dev,transform,ml]'
+          # regroupent l'outillage (ruff, pytest, httpx), les transformations dbt
+          # (dbt-postgres), le ML (scikit-learn, lightgbm, mlflow-skinny, alembic,
+          # skops) et l'API publique (fastapi, uvicorn) — mêmes dépendances
+          # qu'auparavant, déclarées une seule fois. L'extra `api` est requis depuis
+          # le ticket #50 : sans lui, les tests de l'API seraient ignorés en CI.
+          pip install -e '.[dev,transform,ml,api]'
 
       - name: Lint (ruff)
         run: ruff check .
@@ -98,6 +100,7 @@ jobs:
       # Étapes restant à activer aux phases suivantes (Plan Technique §53) :
       # - contrôles Pandera sur le Silver → option du Plan §26, non retenue au MVP
       #   (les tests dbt couvrent les marts) ;
-      # - integration tests  → Phase 8 (API) ;
+      # - integration tests  → ticket #60 (API → base → modèle, parcours de bout en
+      #   bout) ; le socle de l'API (#50) est couvert par les tests unitaires ;
       # - build frontend (Next.js) → Phase 9 ;
       # - déploiement → Phase 12 (voir `cd.yml`).

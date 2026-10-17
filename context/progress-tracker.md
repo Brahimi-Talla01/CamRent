@@ -11,7 +11,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Lot C — CI de données terminé, vérifié et mergé (2026-10-16, PR #37)** — détails en « Completed » ci-dessous. Périmètre : tests de données (`dbt build`) en CI sur un service PostgreSQL avec jeu synthétique déterministe, backend de build figé (`pyproject.toml`), profils dbt `dev`/`prod` séparés, `.env.example` complété. Vérifications : `ruff` 0 erreur ; `pytest` **182 réussis / 0 ignoré** (local **et CI**) ; pipeline de la PR : chargement 360/48/3 puis `dbt build` **137/137 en CI** ; paquet installé et importable hors dépôt.
 - **Prochaine étape : lot D — Phase 8 en deux temps** (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
 - **Suivi des tickets réorganisé par sous-système (2026-10-17, PR #70)** : les milestones de phase sont remplacés par les milestones de **sous-système** (`architecture-context.md` §Sous-systèmes fonctionnels) — **Data Platform** (11 tickets ouverts), **Estimation** (12), **Back-office** (9), **Marketplace** (1) — et chaque phase est découpée en **tickets de module** (3 à 5 par phase), la phase restant portée par le préfixe du titre (`08a.2`, `13.4`). Les **29 tickets de module** sont #43 à #69, #72 et #73 — ces deux derniers complètent la phase 12 (déploiement et sécurité, vérification du retour arrière du modèle), non couverte par 12.1 à 12.4. Les tickets de phase #9 à #13 sont **fermés** avec un commentaire listant leurs tickets de remplacement, et les milestones de phase 08 à 12 sont fermés (les milestones 00 à 07 restent comme historique des issues fermées). Aucune issue ouverte n'est sans milestone. Décision : « pas de ticket trop lourd — un ticket par module ».
-- **08a.1 — socle de l'API publique terminé, vérifié et mergé (2026-10-17)** — détails en « Completed » ci-dessous. Premier des cinq tickets de module de 08a : `backend/` n'était qu'un `.gitkeep` avant cet incrément.
+- **08a.1 — socle de l'API publique terminé, vérifié et mergé (2026-10-17, PR #75)** — détails en « Completed » ci-dessous. Premier des cinq tickets de module de 08a : `backend/` n'était qu'un `.gitkeep` avant cet incrément.
 
 ## Current Goal
 
@@ -268,7 +268,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - `ui-context.md` (séparation public / administration) et `code-standards.md` (`rent_semantics`) ;
   - note de décision 4 (« adapter la cible et l'intervalle », lot E) ajoutée dans `docs/phase-2/README.md`, `docs/phase-5/README.md`, `docs/phase-6/README.md` et `pipelines/README.md`.
 
-- **08a.1 — socle de l'API publique (ticket #50, 2026-10-17)** :
+- **08a.1 — socle de l'API publique (ticket #50, 2026-10-17, PR #75 `feat/08a-api-socle`)** :
   - `backend/` créé avec le découpage de la spec 08 §1 : `api/` (application ASGI, route de santé,
     gestion d'erreurs), `domain/` (vocabulaire réel des données), `infrastructure/`
     (configuration, accès PostgreSQL), `schemas/` (contrat strict), et `services/`,
@@ -293,14 +293,15 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     (`.[dev,transform,ml,api]`) — sans lui les tests de l'API n'auraient pas tourné — et `httpx`
     rejoint l'extra `dev` pour `fastapi.testclient` ; les sous-paquets `backend*` sont déclarés dans
     `pyproject.toml`.
-  - **Vérifications** : `ruff` 0 erreur ; `pytest` **220 réussis** (182 avant l'incrément) ; serveur
-    réel `uvicorn` — santé 200, route inconnue 404 au format unique, `/health` hors préfixe 404,
-    contrat OpenAPI limité à `['/api/v1/health']`.
+  - **Vérifications** : `ruff` 0 erreur ; `pytest` **220 réussis en local et en CI** (182 avant
+    l'incrément, +38 ; l'extra `api` permet aux tests de l'API de tourner réellement en CI) ;
+    `dbt build` **137/137 en CI** (inchangé) ; serveur réel `uvicorn` — santé 200, route inconnue 404
+    au format unique, `/health` hors préfixe 404, contrat OpenAPI limité à `['/api/v1/health']`.
   - **Reste pour 08a** : #51 (prédiction), #52 (provenance du pin), #53 (marché), #54 (comparaison).
 
 ## In Progress
 
-- **Aucun lot en cours.** Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** le 2026-10-17. Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
+- **Aucun lot en cours.** Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
 
 ## Next Up
 

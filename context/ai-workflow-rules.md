@@ -51,6 +51,19 @@ audit (lecture seule) → plan validé → lot vérifié → mise à jour du sui
   temps (08a publique, 08b interne), Phase 9 (09a public, 09b administration), puis specs 13/14
   (back-office, après 08 et 09).
 
+## Suivi des tickets (décision du 2026-10-17)
+
+- **Milestones = sous-systèmes** : `Data Platform`, `Estimation`, `Back-office`, `Marketplace`.
+  GitHub n'attache qu'**un** milestone par issue : l'axe « phase » n'est donc plus un milestone.
+- **La phase reste portée par le préfixe du titre** (`08a.2`, `13.4`, `12.1`), conformément au
+  corpus existant — pas de label de phase ajouté.
+- **Un ticket = un module**, 3 à 5 tickets par phase. Une phase ne donne pas un ticket unique :
+  si un ticket couvre plusieurs modules, il est découpé.
+- Les tickets de phase sont **fermés** au profit de leurs tickets de module, avec un commentaire qui
+  liste le remplacement ; aucun contenu n'est supprimé.
+- Les milestones de phase 00 à 07 restent comme **historique** (issues fermées) ; les milestones de
+  phase 08 à 12 sont fermés.
+
 ## Règles de périmètre
 
 - Travailler sur **une phase à la fois**.

@@ -10,7 +10,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Lot B — qualité et contrat de données terminé, vérifié et mergé (2026-10-16, PR #35)** — détails en « Completed » ci-dessous. Périmètre : provenance d'ingestion (version de connecteur, empreinte de contenu, statut de validation), quarantaine et métadonnées de lot interrogeables en base, `mart_data_quality` et `mart_ingestion_lots`, colonne `rent_semantics`, contrôle des bornes de pièces. Vérifications : `ruff` 0 erreur ; `pytest` **175 réussis / 1 ignoré** en local (le test Parquet reste ignoré sans `pyarrow`) et **176 réussis / 0 ignoré** en CI ; `dbt build` **137/137** (16 modèles, 121 tests dont 6 singuliers) ; contrôles `psql` sur les volumes et l'invariant de publication.
 - **Lot C — CI de données terminé, vérifié et mergé (2026-10-16, PR #37)** — détails en « Completed » ci-dessous. Périmètre : tests de données (`dbt build`) en CI sur un service PostgreSQL avec jeu synthétique déterministe, backend de build figé (`pyproject.toml`), profils dbt `dev`/`prod` séparés, `.env.example` complété. Vérifications : `ruff` 0 erreur ; `pytest` **182 réussis / 0 ignoré** (local **et CI**) ; pipeline de la PR : chargement 360/48/3 puis `dbt build` **137/137 en CI** ; paquet installé et importable hors dépôt.
 - **Prochaine étape : lot D — Phase 8 en deux temps** (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
-- **Suivi des tickets réorganisé par sous-système (2026-10-17, PR #70)** : les milestones de phase sont remplacés par les milestones de **sous-système** (`architecture-context.md` §Sous-systèmes fonctionnels) — **Data Platform** (10 tickets ouverts), **Estimation** (11), **Back-office** (9), **Marketplace** (1) — et chaque phase est découpée en **tickets de module** (3 à 5 par phase), la phase restant portée par le préfixe du titre (`08a.2`, `13.4`). Les **27 tickets de module** sont #43 à #69. Les tickets de phase #9 à #13 sont **fermés** avec un commentaire listant leurs tickets de remplacement, et les milestones de phase 08 à 12 sont fermés (les milestones 00 à 07 restent comme historique des issues fermées). Aucune issue ouverte n'est sans milestone. Décision : « pas de ticket trop lourd — un ticket par module ».
+- **Suivi des tickets réorganisé par sous-système (2026-10-17, PR #70)** : les milestones de phase sont remplacés par les milestones de **sous-système** (`architecture-context.md` §Sous-systèmes fonctionnels) — **Data Platform** (10 tickets ouverts), **Estimation** (11), **Back-office** (9), **Marketplace** (1) — et chaque phase est découpée en **tickets de module** (3 à 5 par phase), la phase restant portée par le préfixe du titre (`08a.2`, `13.4`). Les **29 tickets de module** sont #43 à #69, #72 et #73 — ces deux derniers complètent la phase 12 (déploiement et sécurité, vérification du retour arrière du modèle), non couverte par 12.1 à 12.4. Les tickets de phase #9 à #13 sont **fermés** avec un commentaire listant leurs tickets de remplacement, et les milestones de phase 08 à 12 sont fermés (les milestones 00 à 07 restent comme historique des issues fermées). Aucune issue ouverte n'est sans milestone. Décision : « pas de ticket trop lourd — un ticket par module ».
 
 ## Current Goal
 
@@ -274,15 +274,16 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 ## Next Up
 
 - **Estimation** : #50 à #54 (08a.1 à 08a.5) — prochain incrément ; puis #55 à #58 (09a.1 à 09a.4,
-  interface publique) et #59 (11.4 observabilité du modèle), #60 (12.4 tests d'intégration et bout en
-  bout).
+  interface publique), #59 (11.4 observabilité du modèle), #60 (12.4 tests d'intégration et bout en
+  bout) et #73 (12.6 vérification du retour arrière du modèle).
 - **Back-office** : #61 (08b.1 socle API interne) puis #62 à #66 (13.1 sources, 13.2 datasets,
   13.3 qualité, 13.4 jobs, 13.5 registre), #67 (14.1 rapports et audit), #68/#69 (09b.1/09b.2
   interface d'administration — après les fondations 13).
 - **Data Platform — lots ouverts** : #39 (lot E, prix censurés : adapter la cible et l'intervalle par
   une expérience mesurée), #40 (lot F, rétention des runs), #41 (reproductibilité de bout en bout).
 - **Data Platform — phases conditionnelles** : #44/#45/#46 (11.1 à 11.3, observabilité des données),
-  #43 (10, ordonnancement — condition d'entrée à vérifier), #47/#48/#49 (12.1 à 12.3, production).
+  #43 (10, ordonnancement — condition d'entrée à vérifier), #47/#48/#49/#72 (12.1 à 12.3 et 12.5,
+  production et déploiement).
 - **Marketplace** : #38 (15, décision et cadrage — aucun code avant décision explicite).
 - Conakry reste un chantier **séparé** (décision 10), sans ticket ouvert.
 

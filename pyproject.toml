@@ -51,6 +51,9 @@ dev = [
     "ruff",
     "pytest",
     "pytest-cov",
+    # Phase 8 : `fastapi.testclient.TestClient` s'appuie sur `httpx`. Dépendance de
+    # test uniquement — le service lui-même n'en a pas besoin.
+    "httpx",
 ]
 
 [tool.setuptools]
@@ -59,7 +62,23 @@ dev = [
 # - `eda/` n'a pas d'`__init__.py` : ce sont des scripts exécutés depuis la
 #   racine (`python eda/...`), pas un paquet — hors installation.
 # - `tests/`, `docs/` et `assets/` ne sont pas des paquets d'exécution.
-packages = ["ingestion", "ingestion.sources", "pipelines", "ml", "ml.src"]
+packages = [
+    "ingestion",
+    "ingestion.sources",
+    "pipelines",
+    "ml",
+    "ml.src",
+    # Phase 8 : API publique (sous-systèmes Estimation et Back-office).
+    "backend",
+    "backend.api",
+    "backend.api.routes",
+    "backend.domain",
+    "backend.infrastructure",
+    "backend.ml",
+    "backend.repositories",
+    "backend.schemas",
+    "backend.services",
+]
 
 [tool.ruff]
 line-length = 100

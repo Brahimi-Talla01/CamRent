@@ -10,10 +10,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Lot B — qualité et contrat de données terminé, vérifié et mergé (2026-10-16, PR #35)** — détails en « Completed » ci-dessous. Périmètre : provenance d'ingestion (version de connecteur, empreinte de contenu, statut de validation), quarantaine et métadonnées de lot interrogeables en base, `mart_data_quality` et `mart_ingestion_lots`, colonne `rent_semantics`, contrôle des bornes de pièces. Vérifications : `ruff` 0 erreur ; `pytest` **175 réussis / 1 ignoré** en local (le test Parquet reste ignoré sans `pyarrow`) et **176 réussis / 0 ignoré** en CI ; `dbt build` **137/137** (16 modèles, 121 tests dont 6 singuliers) ; contrôles `psql` sur les volumes et l'invariant de publication.
 - **Lot C — CI de données terminé, vérifié et mergé (2026-10-16, PR #37)** — détails en « Completed » ci-dessous. Périmètre : tests de données (`dbt build`) en CI sur un service PostgreSQL avec jeu synthétique déterministe, backend de build figé (`pyproject.toml`), profils dbt `dev`/`prod` séparés, `.env.example` complété. Vérifications : `ruff` 0 erreur ; `pytest` **182 réussis / 0 ignoré** (local **et CI**) ; pipeline de la PR : chargement 360/48/3 puis `dbt build` **137/137 en CI** ; paquet installé et importable hors dépôt.
 - **Prochaine étape : lot D — Phase 8 en deux temps** (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
+- **Suivi des tickets réorganisé par sous-système (2026-10-17, PR #70)** : les milestones de phase sont remplacés par les milestones de **sous-système** (`architecture-context.md` §Sous-systèmes fonctionnels) — **Data Platform** (10 tickets ouverts), **Estimation** (11), **Back-office** (9), **Marketplace** (1) — et chaque phase est découpée en **tickets de module** (3 à 5 par phase), la phase restant portée par le préfixe du titre (`08a.2`, `13.4`). Les **27 tickets de module** sont #43 à #69. Les tickets de phase #9 à #13 sont **fermés** avec un commentaire listant leurs tickets de remplacement, et les milestones de phase 08 à 12 sont fermés (les milestones 00 à 07 restent comme historique des issues fermées). Aucune issue ouverte n'est sans milestone. Décision : « pas de ticket trop lourd — un ticket par module ».
 
 ## Current Goal
 
-- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 ») : **08a API publique** (prédiction, marché, comparaison — modèle épinglé, payload strict limité aux champs réellement collectés) puis **08b API interne** (permissions, jobs, administration) — pour exposer le modèle et les données de marché selon la spec 08, les invariants de données étant désormais protégés en CI par le lot C.
+- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 », tickets de module) : **08a API publique** — #50 (socle et schémas stricts), #51 (prédiction), #52 (provenance du modèle épinglé), #53 (marché), #54 (comparaison) — puis **08b API interne** — #61 (authentification, rôle `admin`, audit). Le payload reste strictement limité aux champs réellement collectés ; les invariants de données sont protégés en CI par le lot C.
 
 ## Completed
 
@@ -272,17 +273,18 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Next Up
 
-- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 ») : **08a API publique** (prédiction, marché, comparaison — modèle
-  **épinglé**) puis **08b API interne** (permissions, jobs, accès administrateur).
-- **Lot E — prix censurés** : adapter la cible et l'intervalle, par une expérience **mesurée**, après
-  stabilisation du registre.
-- **Puis** : Phase 9 (09a estimation publique / 09b administration, `ui-context.md` figé avant code),
-  specs 13/14 du back-office (décision 7 : implémentation **après** 08 et 09 ; specs de cadrage créées
-  le 2026-10-15), spec 15 marketplace (phase de décision — spec de cadrage créée, aucun code engagé),
-  Phases 10/11/12 selon besoin mesuré, Conakry (chantier séparé, décision 10).
-- Hygiène du registre (rétention des runs) à traiter dans un lot ultérieur (P2 partiel).
-- Tâche ouverte : pondération/explicitation des prix bornés et des républications dans
-  l'entraînement (rejoint le lot E).
+- **Estimation** : #50 à #54 (08a.1 à 08a.5) — prochain incrément ; puis #55 à #58 (09a.1 à 09a.4,
+  interface publique) et #59 (11.4 observabilité du modèle), #60 (12.4 tests d'intégration et bout en
+  bout).
+- **Back-office** : #61 (08b.1 socle API interne) puis #62 à #66 (13.1 sources, 13.2 datasets,
+  13.3 qualité, 13.4 jobs, 13.5 registre), #67 (14.1 rapports et audit), #68/#69 (09b.1/09b.2
+  interface d'administration — après les fondations 13).
+- **Data Platform — lots ouverts** : #39 (lot E, prix censurés : adapter la cible et l'intervalle par
+  une expérience mesurée), #40 (lot F, rétention des runs), #41 (reproductibilité de bout en bout).
+- **Data Platform — phases conditionnelles** : #44/#45/#46 (11.1 à 11.3, observabilité des données),
+  #43 (10, ordonnancement — condition d'entrée à vérifier), #47/#48/#49 (12.1 à 12.3, production).
+- **Marketplace** : #38 (15, décision et cadrage — aucun code avant décision explicite).
+- Conakry reste un chantier **séparé** (décision 10), sans ticket ouvert.
 
 ## Recadrage produit — décisions validées (2026-10-15)
 
@@ -315,6 +317,7 @@ fichier versionné `ml/models/champion.json`.
 ## Open Questions
 
 - **Hygiène du registre (P2 partiel)** : la politique de rétention des runs n'est pas implémentée — l'expérience `rent_prediction` compte **84 runs** (cumul des exécutions). À traiter dans un lot ultérieur (plan §7.5) ; aucune suppression de version n'est automatique.
+- **Provenance du modèle épinglé — écart mesuré le 2026-10-17** : `ml/models/champion.json` (v3, approuvée le 2026-10-15) référence le dataset `mart_ml_dataset@5050042e720e`, alors que le mart vivant est `mart_ml_dataset@d3c11c225f48` (21 colonnes, 2 992 lignes, `rent_semantics` ajoutée par le lot B) — le hash de dataset couvre tout le contenu du mart depuis le lot A2, donc l'ajout de colonne a changé la version. Les features du modèle sont inchangées (7 features, `rent_semantics` n'en fait pas partie) : les prédictions restent valides, mais l'API publique exposerait un `model_version` dont la provenance ne décrit plus les données servies. À trancher (re-promotion gouvernée sur le mart courant **ou** mention explicite du schéma d'avant le lot B) — **ticket #52**.
 - **Emplacement d'artefacts historique** : l'expérience `rent_prediction` conserve l'emplacement enregistré à sa création (`mlruns/3`) car MLflow n'expose pas de modification ; l'emplacement épinglé (`ml/artifacts/mlflow`) s'appliquera aux nouvelles expériences (documenté dans `docs/phase-7/README.md`).
 - **Prix censurés** : conservés avec `price_is_bound` (borne inférieure, 2 564 lignes sur 2 992) ; le seuil de la Phase 5 et la sélection de la Phase 6 sont mesurés sur toutes les observations. Décision prise (2026-10-15) : **adapter la cible et l'intervalle** — mise en œuvre dans le lot E, mesures à produire (lot E non commencé).
 - **Gain ML à démontrer** : **démontré** en Phase 6 — `random_forest_log1p` à 75 425 FCFA de MAE de validation (seuil 79 773), MedAE divisée par près de deux, gain confirmé sur 3 séparations (médian 12,35 %). Le seuil IC n'est franchi que sur 1 graine sur 3 : les arbitrages produit ne doivent pas reposer sur un écart inférieur à cette marge.

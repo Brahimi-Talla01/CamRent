@@ -17,11 +17,15 @@ cohérent avec les documents de référence lus :
 
 ## Titre
 
-<phase ou sous-système + résultat concret>
+<préfixe de phase + résultat concret d'**un seul** module>
+
+Un ticket couvre **un module**, pas une phase entière : si le périmètre commence à ressembler à
+« API publique : prédiction, marché, comparaison », il faut le découper (3 à 5 tickets par phase,
+voir `context/ai-workflow-rules.md` §Suivi des tickets).
 
 Exemples :
-- `Phase 8a — API publique : prédiction, marché, comparaison`
-- `Phase 13 — Back-office : fondations (rôles, sources, qualifies, jobs, registre)`
+- `08a.2 — Endpoint de prédiction (modèle épinglé, fourchette, model_version)`
+- `13.4 — Jobs ML asynchrones`
 
 ## Contexte et objectif
 
@@ -69,4 +73,6 @@ Exemples :
 
 ## Milestone
 
-<milestone existant uniquement>
+<sous-système uniquement : `Data Platform`, `Estimation`, `Back-office` ou `Marketplace` — voir
+`context/ai-workflow-rules.md` §Suivi des tickets. Les milestones de phase ne sont plus utilisés :
+la phase se porte par le préfixe du titre (`08a.2`, `13.4`).>

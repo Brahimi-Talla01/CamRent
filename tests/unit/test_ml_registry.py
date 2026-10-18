@@ -6,6 +6,8 @@ fonctionne pas sur un file store, ce que ces tests vérifient aussi.
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 import pytest
 from sklearn.linear_model import LinearRegression
@@ -214,6 +216,84 @@ def test_register_creates_a_version_and_sets_the_alias(
 def test_read_champion_pin_raises_when_the_file_is_missing(tmp_path) -> None:
     with pytest.raises(FileNotFoundError, match="introuvable"):
         registry.read_champion_pin(tmp_path / "absent.json")
+
+
+def test_read_champion_pin_refuses_an_unreadable_file(tmp_path) -> None:
+    """Un pin illisible ne doit jamais être interprété comme « pas de pin »."""
+    pin = tmp_path / "champion.json"
+    pin.write_text("{pas du json", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="illisible"):
+        registry.read_champion_pin(pin)
+
+
+def test_read_champion_pin_refuses_an_incomplete_pin(tmp_path) -> None:
+    pin = tmp_path / "champion.json"
+    pin.write_text(json.dumps({"etiquette": "rent-model-v4"}), encoding="utf-8")
+
+    with pytest.raises(ValueError) as exc_info:
+        registry.read_champion_pin(pin)
+
+    assert "incomplète" in str(exc_info.value)
+    assert "model_uri" in str(exc_info.value)
+
+
+def test_read_champion_pin_refuses_a_pin_without_dataset_provenance(tmp_path) -> None:
+    """Une version servie sans provenance de données n'est pas traçable."""
+    pin = tmp_path / "champion.json"
+    pin.write_text(
+        json.dumps(
+            {
+                "nom": "rent-model",
+                "version": 4,
+                "etiquette": "rent-model-v4",
+                "model_uri": "models:/m-1",
+                "dataset": {"source": "analytics_marts.mart_ml_dataset"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError) as exc_info:
+        registry.read_champion_pin(pin)
+
+    assert "dataset.hash_md5" in str(exc_info.value)
+    assert "dataset.version" in str(exc_info.value)
+
+
+def test_pin_command_fails_when_the_pin_is_missing(tmp_path, capsys) -> None:
+    """Contrôle avant serving : pin absent → message explicite et exit non nul."""
+    from ml.src.__main__ import main
+
+    assert main(["pin", "--pin", str(tmp_path / "absent.json")]) == 1
+    assert "introuvable" in capsys.readouterr().err
+
+
+def test_pin_command_prints_the_pinned_provenance(tmp_path, capsys) -> None:
+    pin = tmp_path / "champion.json"
+    pin.write_text(
+        json.dumps(
+            {
+                "nom": "rent-model",
+                "version": 4,
+                "etiquette": "rent-model-v4",
+                "model_uri": "models:/m-1",
+                "dataset": {
+                    "source": "analytics_marts.mart_ml_dataset",
+                    "version": "mart_ml_dataset@d3c11c225f48",
+                    "hash_md5": "d3c11c225f48abc36a99037d9b9f2ce9",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from ml.src.__main__ import main
+
+    assert main(["pin", "--pin", str(pin)]) == 0
+    captured = capsys.readouterr().out
+    assert "rent-model-v4" in captured
+    assert "mart_ml_dataset@d3c11c225f48" in captured
 
 
 def test_report_never_shows_an_absolute_path() -> None:

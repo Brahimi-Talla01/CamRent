@@ -38,6 +38,28 @@ NEIGHBORHOODS: dict[str, tuple[str, ...]] = {
 
 MODEL_VERSION = "rent-model-test"
 MODEL_URI = "models:/fixture"
+# Provenance de test : le serving exige un pin complet (dataset compris), sinon la
+# version servie ne serait pas traçable.
+DATASET = {
+    "source": "analytics_marts.mart_ml_dataset",
+    "version": "mart_ml_dataset@fixture",
+    "hash_md5": "0" * 32,
+    "n_observations": len(NEIGHBORHOODS) * 6,
+}
+
+
+def pin_payload() -> dict[str, object]:
+    """Pin complet, au même format que celui écrit par la CLI de promotion (Phase 7)."""
+    return {
+        "pin_version": 1,
+        "nom": "rent-model",
+        "version": 1,
+        "etiquette": MODEL_VERSION,
+        "alias": "champion",
+        "run_id": "run-fixture",
+        "model_uri": MODEL_URI,
+        "dataset": dict(DATASET),
+    }
 
 
 def training_frame() -> pd.DataFrame:
@@ -70,18 +92,11 @@ def build_bundle() -> ServingBundle:
     interval = uncertainty.QuantileRegressionInterval(0.10).fit(
         frame[list(INPUT_COLUMNS)], frame["rent"]
     )
-    return ServingBundle(
-        pin={"etiquette": MODEL_VERSION, "model_uri": MODEL_URI, "version": 1},
-        model=model,
-        interval=interval,
-    )
+    return ServingBundle(pin=pin_payload(), model=model, interval=interval)
 
 
 def write_pin(directory: Path) -> Path:
     """Écrit un pin de test dans un répertoire donné (jamais dans le dépôt)."""
     path = directory / "champion.json"
-    path.write_text(
-        json.dumps({"etiquette": MODEL_VERSION, "model_uri": MODEL_URI, "version": 1}),
-        encoding="utf-8",
-    )
+    path.write_text(json.dumps(pin_payload()), encoding="utf-8")
     return path

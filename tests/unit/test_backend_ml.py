@@ -2,9 +2,9 @@
 
 Le modèle servi est le **fixture isolé** `serving_fixture` : un pipeline
 scikit-learn minimal entraîné dans le test — ni registre MLflow, ni artefact du
-poste local, ni base. Le chargement du vrai registre reste couvert en local par
-la vérification HTTP réelle de la phase 8 (le fixture dédié au serving est le
-ticket #52).
+poste local, ni base, donc ces tests passent en CI sur une machine neuve.
+La provenance est vérifiée séparément, avec un client de registre factice : le
+alias de référence doit pointer la version et l'artefact épinglés.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from serving_fixture import (
     MODEL_VERSION,
     NEIGHBORHOODS,
     build_bundle,
+    pin_payload,
     write_pin,
 )
 
@@ -88,6 +89,65 @@ def test_incomplete_pin_is_an_explicit_error(tmp_path: Path) -> None:
 
     assert "incomplète" in str(exc_info.value)
     assert "model_uri" in str(exc_info.value)
+
+
+def test_pin_without_dataset_provenance_is_refused(tmp_path: Path) -> None:
+    """Servir sans provenance de données rendrait la version invérifiable."""
+    payload = pin_payload()
+    payload["dataset"] = {"source": "analytics_marts.mart_ml_dataset"}
+    pin = tmp_path / "champion.json"
+    pin.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(ServingError) as exc_info:
+        loader.read_champion_pin(pin)
+
+    assert "Provenance du pin incomplète" in str(exc_info.value)
+    assert "dataset.hash_md5" in str(exc_info.value)
+
+
+class _FakeRegistry:
+    """Registre minimal : l'alias de référence pointe la version attendue."""
+
+    def __init__(self, *, version: int, source: str) -> None:
+        self.version = version
+        self.source = source
+        self.missing = False
+
+    def get_model_version_by_alias(self, name: str, alias: str) -> object:
+        if self.missing:
+            raise LookupError(f"alias {alias} introuvable pour {name}")
+
+        class _Version:
+            pass
+
+        version = _Version()
+        version.version = self.version
+        version.source = self.source
+        return version
+
+
+def test_provenance_check_accepts_the_pinned_version() -> None:
+    payload = pin_payload()
+    client = _FakeRegistry(version=payload["version"], source=str(payload["model_uri"]))
+
+    loader.verify_pinned_version(payload, client=client)
+
+
+def test_provenance_check_refuses_a_moved_alias() -> None:
+    """Un alias déplacé à la main ne doit jamais être servi en silence."""
+    payload = pin_payload()
+    client = _FakeRegistry(version=99, source="models:/m-autre")
+
+    with pytest.raises(ServingError, match="Provenance incohérente"):
+        loader.verify_pinned_version(payload, client=client)
+
+
+def test_provenance_check_refuses_a_missing_alias() -> None:
+    client = _FakeRegistry(version=1, source=str(pin_payload()["model_uri"]))
+    client.missing = True
+
+    with pytest.raises(ServingError, match="provenance du modèle servi non vérifiable"):
+        loader.verify_pinned_version(pin_payload(), client=client)
 
 
 def test_missing_interval_is_an_explicit_error(tmp_path: Path) -> None:

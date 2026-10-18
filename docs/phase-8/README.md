@@ -1,14 +1,15 @@
-# Phase 8 — API publique : socle (08a.1) et prédiction (08a.2)
+# Phase 8 — API publique : socle (08a.1), prédiction (08a.2) et provenance (08a.3)
 
 Objectif (spec : `context/feature-specs/08-api.md`) : exposer le modèle et les données de
 marché via une API backend claire, versionnée et reproductible.
 
 La phase 8 est livrée en **deux temps** (plan §10, lot 4) : **08a API publique** puis
-**08b API interne**. Ce document couvre les deux premiers incréments du 08a — le
+**08b API interne**. Ce document couvre les trois premiers incréments du 08a — le
 **socle** (ticket #50 : structure `backend/`, schémas stricts, erreurs au format unique,
-route de version) puis **l'endpoint de prédiction** (ticket #51 : `POST
-/api/v1/predictions`, modèle épinglé, fourchette, `model_version`). Les endpoints de
-marché (#53) et de comparaison (#54) suivent.
+route de version), **l'endpoint de prédiction** (ticket #51 : `POST
+/api/v1/predictions`, modèle épinglé, fourchette, `model_version`) et la **provenance
+verrouillée** (ticket #52 : pin cohérent avec le mart vivant, vérification de l'alias au
+chargement). Les endpoints de marché (#53) et de comparaison (#54) suivent.
 
 ## Livrables du socle (#50)
 
@@ -57,7 +58,7 @@ Entrée (le schéma strict du socle, inchangé) :
 {"city": "Douala", "neighborhood": "Makepe", "property_type": "apartment", "bedrooms": 2, "bathrooms": 2}
 ```
 
-Réponse — **réelle**, servie par le modèle épinglé (vérification du 2026-10-17) :
+Réponse — **réelle**, servie par le modèle épinglé (vérification du 2026-10-18) :
 
 ```json
 {
@@ -65,7 +66,7 @@ Réponse — **réelle**, servie par le modèle épinglé (vérification du 2026
   "currency": "XAF",
   "lower_bound": 80000,
   "upper_bound": 150002,
-  "model_version": "rent-model-v3"
+  "model_version": "rent-model-v4"
 }
 ```
 
@@ -91,10 +92,45 @@ Points de conception :
 - **Cache et démarrage** : le bundle est chargé une seule fois (verrou), au premier appel
   utile ; l'application démarre et sert la santé sans registre ni artefact joignables.
 
-Vérifications HTTP réelles (serveur `uvicorn`, modèle épinglé v3) : 200 avec fourchette
+Vérifications HTTP réelles (serveur `uvicorn`, modèle épinglé v4) : 200 avec fourchette
 ordonnée (80 000 ≤ 109 990 ≤ 150 002 FCFA) ; deux appels identiques → réponses
 **identiques** ; quartier inconnu → 404 `not_found` ; quartier réel mais jamais vu avec
 cette ville → 404 ; `area_m2` → 422 `validation_error` avec le détail du champ.
+
+### Provenance verrouillée (08a.3, ticket #52)
+
+Le modèle épinglé est **`rent-model-v4`**, promu le 2026-10-18 avec approbation
+nominative, sur le mart **courant** :
+
+| Élément | Valeur |
+|---|---|
+| version servie | `rent-model-v4` (alias `champion` → v4) |
+| dataset d'entraînement | `mart_ml_dataset@d3c11c225f48` — 2 992 observations, 21 colonnes |
+| pin | `ml/models/champion.json` (approbation, run, SHA Git, hash du dataset) |
+
+L'écart de la v3 est **clos** : son pin décrivait `mart_ml_dataset@5050042e720e`, le
+schéma d'avant l'ajout de `rent_semantics` par le lot B, alors que le mart vivant est
+`mart_ml_dataset@d3c11c225f48`. Le modèle n'utilisait pas la colonne ajoutée — les
+prédictions sont identiques à la v3 (mêmes features, mêmes valeurs) — mais la provenance
+publiée ne décrivait plus les données servies. La correction est passée par la **voie
+gouvernée** : `python -m ml.src registry --confirm-promotion --approved-by "Ibrahim Talla"`.
+`ml/models/champion.json` n'est **jamais** modifié à la main.
+
+Trois contrôles rendent un écart **impossible à servir en silence** :
+
+1. **Pin complet exigé** : le pin doit porter sa provenance de données (`dataset.version`,
+   `dataset.hash_md5`) — un pin incomplet est refusé au chargement, avec le nom des clés
+   manquantes ;
+2. **Alias vérifié** : au premier chargement, l'alias `champion` doit pointer **la même
+   version et la même URI** que le pin. Un alias déplacé à la main, une version supprimée
+   ou un pin divergent lèvent une erreur explicite, jamais une prédiction servie ;
+3. **Lecture défensive** : un fichier absent, illisible ou non JSON échoue avec un message
+   qui nomme le fichier (et, côté CLI, un code de sortie non nul).
+
+Un quatrième point reste **documenté plutôt que vérifié automatiquement** : le serving ne
+relit pas le mart à chaque requête (ce serait un couplage base → serving et un coût par
+appel). La cohérence pin ↔ mart se vérifie donc à la promotion, en rejouant la CLI sur le
+mart courant — c'est cette re-promotion qui a produit la v4.
 
 ### Schéma d'entrée strict
 
@@ -174,12 +210,24 @@ Vérifications de l'incrément de prédiction (#51, 2026-10-17) :
 |---|---|
 | `ruff check .` | 0 erreur |
 | `pytest -q` (suite complète) | **240 réussis** (220 avant l'incrément → +20) |
-| prédiction réelle (modèle épinglé) | **200** — `{"estimated_rent":109990,"currency":"XAF","lower_bound":80000,"upper_bound":150002,"model_version":"rent-model-v3"}` |
+| prédiction réelle (modèle épinglé) | **200** — `{"estimated_rent":109990,"currency":"XAF","lower_bound":80000,"upper_bound":150002,"model_version":"rent-model-v4"}` |
 | reproductibilité | deux `POST` identiques → réponses **identiques** |
 | hors domaine | quartier inconnu et quartier jamais vu avec la ville → **404 `not_found`** |
 | champ non collecté | `area_m2` → **422** `validation_error` avec détail par champ |
 | contrat OpenAPI | `paths = ['/api/v1/health', '/api/v1/predictions']` |
 | échec de serving | test : 500 `internal_error` générique, ni chemin ni classe d'exception fuités |
+
+Vérifications de l'incrément de provenance (#52, 2026-10-18) :
+
+| Contrôle | Résultat |
+|---|---|
+| re-promotion gouvernée | `python -m ml.src registry --confirm-promotion --approved-by "Ibrahim Talla"` → **`rent-model-v4`**, alias `champion` → 4, pin réécrit |
+| dataset du pin | `mart_ml_dataset@d3c11c225f48` — identique au mart vivant (2 992 observations, 21 colonnes) |
+| contrôle de provenance réel | alias `champion` → v4 et URI `models:/m-517f4fb9...` conformes au pin ; un pin divergent (v3 + URI v3) → **refus explicite** |
+| prédiction réelle | **200** — mêmes valeurs qu'en v3 (features inchangées), `model_version` = `rent-model-v4`, deux `POST` identiques → réponses identiques |
+| lecture défensive | pin absent → `FileNotFoundError` ; pin illisible / incomplet / sans `dataset.hash_md5` → erreur explicite nommant le fichier ou les clés |
+| contrôle avant serving | `python -m ml.src pin` → **exit 0** avec `rent-model-v4` / `mart_ml_dataset@d3c11c225f48` ; pin absent → **exit 1** et message nommant le fichier |
+| fixture isolé | le serving est testé **sans** registre, sans base et sans artefact du poste (fixture `tests/unit/serving_fixture.py`) — exécuté en CI |
 
 ## Lancer et rejouer
 
@@ -200,17 +248,17 @@ python -m pytest tests/unit/test_api_*.py -q   # tests de l'incrément
 
 - **Endpoints restants** : marché (#53) et comparaison (#54) restent à livrer ; l'API
   n'affiche encore aucune donnée de marché.
-- **Provenance du modèle** : `model_version` est désormais exposé (`rent-model-v3`), et
-  l'écart mesuré entre le dataset du pin `champion` (`mart_ml_dataset@5050042e720e`) et le
-  mart vivant (`mart_ml_dataset@d3c11c225f48`) reste traité par le ticket #52 — l'écart est
-  documenté, jamais silencieux.
+- **Provenance du modèle** : le pin décrit désormais le mart vivant (`rent-model-v4`,
+  `mart_ml_dataset@d3c11c225f48`) et l'alias `champion` est vérifié au chargement. La
+  cohérence pin ↔ mart n'est pas revérifiée à chaque requête : elle l'est à la promotion,
+  en rejouant la CLI sur le mart courant.
 - **Fourchette liée à un artefact local** : l'intervalle calibré vient d'un fichier non
   versionné (`ml/models/rent_model_v1_intervalle.joblib`) — sa présence est exigée au
   chargement (erreur explicite sinon), mais un déploiement sur une machine neuve doit le
-  régénérer (`python -m ml.src models`) ou le transférer. Couplage à trancher en #52.
-- **Chargement réel testé en local** : les tests unitaires et la CI utilisent un fixture de
-  modèle isolé (sans registre ni artefact) ; le chargement depuis le registre MLflow n'est
-  exercé que sur le poste de développement. Le fixture de serving durci est le périmètre de #52.
+  régénérer (`python -m ml.src models`) ou le transférer. Couplage toujours ouvert.
+- **Chargement réel** : les tests unitaires et la CI utilisent un fixture de modèle isolé
+  (sans registre, sans base, sans artefact du poste) ; le chargement depuis le registre
+  MLflow n'est exercé que sur le poste de développement, faute de registre en CI.
 - **Avertissement de bibliothèque** : `starlette.testclient` signale que l'usage d'`httpx`
   est déprécié au profit d'`httpx2`. Le test fonctionne ; c'est un choix de dépendance à
   réévaluer lors d'une montée de version de Starlette.
@@ -219,7 +267,6 @@ python -m pytest tests/unit/test_api_*.py -q   # tests de l'incrément
 
 | Ticket | Contenu |
 |---|---|
-| #52 | Provenance du modèle épinglé + fixture de modèle isolée |
 | #53 | Endpoints de marché (villes, quartiers, prix) — nombre d'observations obligatoire |
 | #54 | Endpoint de comparaison |
 | #60 | Tests d'intégration API → base → modèle et parcours de bout en bout |

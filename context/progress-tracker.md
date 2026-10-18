@@ -14,7 +14,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **08a.1 — socle de l'API publique terminé, vérifié et mergé (2026-10-17, PR #75)** — détails en « Completed » ci-dessous. Premier des cinq tickets de module de 08a : `backend/` n'était qu'un `.gitkeep` avant cet incrément.
 - **08a.2 — endpoint de prédiction terminé et vérifié (2026-10-18, PR #77)** — détails en « Completed » ci-dessous. Le modèle épinglé est désormais **servi** : `POST /api/v1/predictions` renvoie la fourchette calibrée de la Phase 6 et la version réellement chargée.
 - **08a.3 — provenance du modèle verrouillée (2026-10-18, ticket #52, PR #78)** — détails en « Completed » ci-dessous.
-- **08a.3+ — serving durci (2026-10-18)** — détails en « Completed » ci-dessous. Les trois limites restantes du ticket #52 sont fermées : intervalle servi depuis le registre, chemin de production testé en CI, préflight pin ↔ mart. Arbitrage du porteur du projet : **re-promotion gouvernée** sur le mart courant (`rent-model-v4`, approbation nominative), plutôt qu'une simple mention documentaire de l'écart.
+- **08a.3+ — serving durci (2026-10-18, PR #80)** — détails en « Completed » ci-dessous. Arbitrage du porteur du projet : **re-promotion gouvernée** sur le mart courant (`rent-model-v4`, approbation nominative), plutôt qu'une simple mention documentaire de l'écart.
 
 ## Current Goal
 
@@ -344,7 +344,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     E2E `uvicorn` — **200** `{"estimated_rent":109990,"currency":"XAF","lower_bound":80000,"upper_bound":150002,"model_version":"rent-model-v4"}`,
     valeurs identiques à la v3, deux appels identiques → réponses identiques ; pin divergent refusé.
 
-- **08a.3+ — serving durci, limites du ticket #52 fermées (2026-10-18, branche `feat/08a.3b-serving-durci`)** :
+- **08a.3+ — serving durci, limites du ticket #52 fermées (2026-10-18, PR #80 `feat/08a.3b-serving-durci`, squash `ebb6530`)** :
   - **Intervalle servi depuis le registre** : `backend/ml/loader.py::load_interval` relit l'intervalle
     calibré dans les **artefacts du run épinglé** (`pin.run_id`), au lieu du fichier local
     `ml/models/rent_model_v1_intervalle.joblib` — plus d'artefact non versionné dont la
@@ -356,18 +356,19 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - **Préflight pin ↔ mart** : `python -m ml.src pin --check-dataset` compare le hash du pin au mart
     vivant (base requise) et sort en **erreur 1** en cas de dérive ou de base injoignable ; le
     serving ne relit toujours pas la base à chaque requête.
-  - **Tests** : **7 nouveaux** (3 d'intégration registre, 4 sur le préflight) ; suite **256 réussis**.
-  - **Vérifications** : `ruff` 0 erreur ; `pytest` **256 réussis** ; préflight réel — exit 0 sur le
-    pin courant, exit 1 sur un pin périmé ; E2E `uvicorn` **sans** le fichier d'intervalle local —
-    **200** avec les mêmes bornes (`rent-model-v4`).
+  - **Tests** : **7 nouveaux** (3 d'intégration registre, 4 sur le préflight) ; suite **256 réussis**
+    en local **et en CI** (les tests d'intégration registre s'exécutent réellement, aucun skip).
+  - **Vérifications** : `ruff` 0 erreur ; préflight réel — exit 0 sur le pin courant, exit 1 sur un
+    pin périmé ; E2E `uvicorn` **sans** le fichier d'intervalle local — **200** avec les mêmes bornes
+    (`rent-model-v4`) ; `dbt build` 137/137 en CI.
 
 ## In Progress
 
-- **Aucun lot en cours.** L'incrément **08a.3+ (serving durci)** est **terminé et vérifié** : branche `feat/08a.3b-serving-durci`, 2026-10-18 ; intervalle servi depuis le registre, test d'intégration MLflow exécuté en CI, préflight `pin --check-dataset`, `ruff` 0 erreur, **256 tests réussis**. Le ticket de module **#52** (provenance verrouillée, 08a.3) est **terminé, vérifié et mergé** : PR **#78** (branche `feat/08a.3-provenance-pin` → `develop`, squash `e9eb0dc`), 2026-10-18 ; CI verte (`ruff` 0, **249 tests réussis**, `dbt build` 137/137), re-promotion gouvernée `rent-model-v4` sur le mart courant, E2E réel sous `uvicorn` ; branche supprimée après fusion, issue #52 close. Le ticket de module **#51** (prédiction, 08a.2) est **terminé et vérifié** : PR **#77** (branche `feat/08a-predictions` → `develop`), 2026-10-18 ; CI verte (`ruff` 0, **240 tests réussis**, `dbt build` inchangé), E2E réel sous `uvicorn` avec le modèle v3 épinglé. Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
+- **Aucun lot en cours.** L'incrément **08a.3+ (serving durci)** est **terminé, vérifié et mergé** : PR **#80** (branche `feat/08a.3b-serving-durci` → `develop`, squash `ebb6530`), 2026-10-18 ; CI verte (`ruff` 0, **256 tests réussis** dont les 3 tests d'intégration registre, `dbt build` 137/137), intervalle servi depuis le registre, préflight `pin --check-dataset` ; branche supprimée après fusion. Le ticket de module **#52** (provenance verrouillée, 08a.3) est **terminé, vérifié et mergé** : PR **#78** (branche `feat/08a.3-provenance-pin` → `develop`, squash `e9eb0dc`), 2026-10-18 ; CI verte (`ruff` 0, **249 tests réussis**, `dbt build` 137/137), re-promotion gouvernée `rent-model-v4` sur le mart courant, E2E réel sous `uvicorn` ; branche supprimée après fusion, issue #52 close. Le ticket de module **#51** (prédiction, 08a.2) est **terminé et vérifié** : PR **#77** (branche `feat/08a-predictions` → `develop`), 2026-10-18 ; CI verte (`ruff` 0, **240 tests réussis**, `dbt build` inchangé), E2E réel sous `uvicorn` avec le modèle v3 épinglé. Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
 
 ## Next Up
 
-- **Estimation** : #53 et #54 (08a.4 et 08a.5) — #50 (socle), #51 (prédiction) et #52 (provenance) livrés ; puis #55 à #58 (09a.1 à 09a.4,
+- **Estimation** : #53 et #54 (08a.4 et 08a.5) — #50 (socle), #51 (prédiction), #52 (provenance) et le serving durci (08a.3+) livrés ; puis #55 à #58 (09a.1 à 09a.4,
   interface publique), #59 (11.4 observabilité du modèle), #60 (12.4 tests d'intégration et bout en
   bout) et #73 (12.6 vérification du retour arrière du modèle).
 - **Back-office** : #61 (08b.1 socle API interne) puis #62 à #66 (13.1 sources, 13.2 datasets,

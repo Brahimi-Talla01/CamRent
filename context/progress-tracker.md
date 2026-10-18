@@ -12,10 +12,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Prochaine étape : lot D — Phase 8 en deux temps** (**08a API publique** puis **08b API interne** — ordre aligné sur le plan §10/lot 4), puis la Phase 9 (09a estimation publique / 09b administration), les specs 13/14 du back-office venant **après** 08 et 09 (décision 7).
 - **Suivi des tickets réorganisé par sous-système (2026-10-17, PR #70)** : les milestones de phase sont remplacés par les milestones de **sous-système** (`architecture-context.md` §Sous-systèmes fonctionnels) — **Data Platform**, **Estimation**, **Back-office**, **Marketplace** — et chaque phase est découpée en **tickets de module** (3 à 5 par phase), la phase restant portée par le préfixe du titre (`08a.2`, `13.4`). Les **29 tickets de module** sont #43 à #69, #72 et #73 — ces deux derniers complètent la phase 12 (déploiement et sécurité, vérification du retour arrière du modèle), non couverte par 12.1 à 12.4. Les tickets de phase #9 à #13 sont **fermés** avec un commentaire listant leurs tickets de remplacement, et les milestones de phase 08 à 12 sont fermés (les milestones 00 à 07 restent comme historique des issues fermées). Aucune issue ouverte n'est sans milestone. Décision : « pas de ticket trop lourd — un ticket par module ».
 - **08a.1 — socle de l'API publique terminé, vérifié et mergé (2026-10-17, PR #75)** — détails en « Completed » ci-dessous. Premier des cinq tickets de module de 08a : `backend/` n'était qu'un `.gitkeep` avant cet incrément.
+- **08a.2 — endpoint de prédiction terminé et vérifié (2026-10-18, PR #77)** — détails en « Completed » ci-dessous. Le modèle épinglé est désormais **servi** : `POST /api/v1/predictions` renvoie la fourchette calibrée de la Phase 6 et la version réellement chargée.
 
 ## Current Goal
 
-- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 », tickets de module) : **08a API publique** — **#50 livré** (socle, schémas stricts, erreurs au format unique), #51 (prédiction), #52 (provenance du modèle épinglé), #53 (marché), #54 (comparaison) — puis **08b API interne** — #61 (authentification, rôle `admin`, audit). Le payload reste strictement limité aux champs réellement collectés ; les invariants de données sont protégés en CI par le lot C.
+- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 », tickets de module) : **08a API publique** — **#50 livré** (socle, schémas stricts, erreurs au format unique), **#51 livré** (prédiction servie depuis le modèle épinglé), #52 (provenance du modèle épinglé), #53 (marché), #54 (comparaison) — puis **08b API interne** — #61 (authentification, rôle `admin`, audit). Le payload reste strictement limité aux champs réellement collectés ; les invariants de données sont protégés en CI par le lot C.
 
 ## Completed
 
@@ -297,15 +298,32 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     l'incrément, +38 ; l'extra `api` permet aux tests de l'API de tourner réellement en CI) ;
     `dbt build` **137/137 en CI** (inchangé) ; serveur réel `uvicorn` — santé 200, route inconnue 404
     au format unique, `/health` hors préfixe 404, contrat OpenAPI limité à `['/api/v1/health']`.
-  - **Reste pour 08a** : #51 (prédiction), #52 (provenance du pin), #53 (marché), #54 (comparaison).
+  - **Reste pour 08a** : #52 (provenance du pin), #53 (marché), #54 (comparaison).
+
+- **08a.2 — endpoint de prédiction (ticket #51, 2026-10-17, PR #77 `feat/08a-predictions`)** :
+  - **Modèle servi** : `backend/ml/loader.py` résout le champion du registre épinglé
+    (`ml/models/champion.json`) et charge le pipeline **et** l'intervalle calibré ; un artefact
+    absent ou illisible lève une erreur explicite, jamais une prédiction inventée.
+  - **Service d'estimation** : features construites par le `FeatureBuilder` d'entraînement (aucune
+    recomposition hors entraînement), quantiles 5 %/95 % de la Phase 6 appliqués, ordre
+    `lower_bound <= estimated_rent <= upper_bound` garanti et plancher à 1 FCFA.
+  - **Contrat** : `POST /api/v1/predictions` renvoie `estimated_rent`, `lower_bound`, `upper_bound`,
+    `currency`, `model_version` ; quartier inconnu → **404** `not_found`, champ non collecté →
+    **422** `validation_error` avec détail par champ, échec de serving → **500** générique.
+  - **Tests** : `test_backend_ml.py` (chargement, reproductibilité, invariant d'ordre) et
+    `test_api_predictions.py` (200/404/422, format d'erreur) — **20 nouveaux tests**.
+  - **Vérifications** : `ruff` 0 erreur ; `pytest` **240 réussis** ; E2E réel sous `uvicorn` avec le
+    modèle v3 épinglé — **200** `{"estimated_rent":109990,"currency":"XAF","lower_bound":80000,"upper_bound":150002,"model_version":"rent-model-v3"}`,
+    deux appels identiques → réponses identiques.
+  - **Reste pour 08a** : #52 (provenance du pin), #53 (marché), #54 (comparaison).
 
 ## In Progress
 
-- **Aucun lot en cours.** Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
+- **Aucun lot en cours.** Le ticket de module **#51** (prédiction, 08a.2) est **terminé et vérifié** : PR **#77** (branche `feat/08a-predictions` → `develop`), 2026-10-18 ; CI verte (`ruff` 0, **240 tests réussis**, `dbt build` inchangé), E2E réel sous `uvicorn` avec le modèle v3 épinglé. Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
 
 ## Next Up
 
-- **Estimation** : #51 à #54 (08a.2 à 08a.5) — #50 (socle) livré ; puis #55 à #58 (09a.1 à 09a.4,
+- **Estimation** : #52 à #54 (08a.3 à 08a.5) — #50 (socle) et #51 (prédiction) livrés ; puis #55 à #58 (09a.1 à 09a.4,
   interface publique), #59 (11.4 observabilité du modèle), #60 (12.4 tests d'intégration et bout en
   bout) et #73 (12.6 vérification du retour arrière du modèle).
 - **Back-office** : #61 (08b.1 socle API interne) puis #62 à #66 (13.1 sources, 13.2 datasets,

@@ -119,11 +119,24 @@ python -m ml.src models
 python -m ml.src registry
 ```
 
-## État courant (lot A2 — 2026-10-15)
+## État courant (2026-10-18)
 
-- Le registre compte **3 versions** : `rent-model-v1` (rejeu du 2026-10-14),
-  `v2` et **`v3`** (promue le 2026-10-15 avec approbation explicite) ; l'alias
-  `champion` pointe sur **v3**, telle que consignée dans `ml/models/champion.json`.
+- Le registre compte **4 versions** : `rent-model-v1` (rejeu du 2026-10-14),
+  `v2`, `v3` (promue le 2026-10-15) et **`v4`** (promue le 2026-10-18, approbation
+  nominative) ; l'alias `champion` pointe sur **v4**, telle que consignée dans
+  `ml/models/champion.json`.
+- **Pourquoi une v4** : le pin de la v3 décrivait `mart_ml_dataset@5050042e720e`,
+  le schéma d'avant l'ajout de `rent_semantics` par le lot B, alors que le mart
+  vivant est `mart_ml_dataset@d3c11c225f48`. Les features du modèle n'ayant pas
+  changé, la re-promotion a été faite **par la voie gouvernée**
+  (`python -m ml.src registry --confirm-promotion --approved-by <nom>`) : le pin
+  décrit désormais exactement les données du mart courant, et les métriques sont
+  inchangées (même modèle retenu, `random_forest_log1p`).
+- `read_champion_pin` refuse désormais un pin **illisible ou incomplet** (provenance
+  de données comprise) au lieu de rendre un contenu ambigu.
+- Contrôle avant serving : `python -m ml.src pin` imprime la version épinglée, son
+  dataset et son approbation ; il sort en **erreur (code 1)** si le pin est absent,
+  illisible ou incomplet.
 - Une promotion sans approbation s'arrête **avant toute écriture** : vérifié en
   CLI (exit 1, registre inchangé, aucun fichier épinglé créé).
 - Vérifications du lot : `ruff` 0 erreur ; `pytest` **161 réussis, 1 ignoré**

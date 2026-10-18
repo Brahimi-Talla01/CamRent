@@ -257,9 +257,48 @@ def write_champion_pin(
     return path
 
 
+# Clés sans lesquelles le pin ne décrit pas une version servable ni ses données.
+REQUIRED_PIN_KEYS: tuple[str, ...] = ("nom", "version", "etiquette", "model_uri", "dataset")
+REQUIRED_DATASET_KEYS: tuple[str, ...] = ("source", "version", "hash_md5")
+
+
 def read_champion_pin(path: Path | None = None) -> dict[str, Any]:
-    """Relit la version épinglée (erreur explicite si le fichier est absent)."""
-    path = path or config.CHAMPION_PIN_PATH
-    if not Path(path).exists():
-        raise FileNotFoundError(f"Version épinglée introuvable : {path}.")
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    """Relit la version épinglée, sans jamais tolérer un pin douteux.
+
+    Un pin absent, illisible ou incomplet rend la provenance du modèle servi
+    invérifiable : la lecture échoue explicitement plutôt que de laisser servir
+    une version dont on ne sait plus ce qu'elle décrit.
+
+    Raises:
+        FileNotFoundError: aucun fichier de pin à l'emplacement attendu.
+        ValueError: contenu non JSON, format inattendu ou clé de provenance
+            manquante.
+    """
+    pin_path = Path(path) if path is not None else config.CHAMPION_PIN_PATH
+    if not pin_path.is_file():
+        raise FileNotFoundError(
+            f"Version épinglée introuvable : {pin_path}. Relancer "
+            "`python -m ml.src registry --confirm-promotion --approved-by <nom>` "
+            "pour épingler la version servie."
+        )
+    try:
+        payload = json.loads(pin_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ValueError(f"Version épinglée illisible : {pin_path}.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError(f"Version épinglée illisible (format inattendu) : {pin_path}.")
+    missing = [key for key in REQUIRED_PIN_KEYS if not payload.get(key)]
+    if missing:
+        raise ValueError(
+            f"Version épinglée incomplète ({', '.join(missing)}) : {pin_path}."
+        )
+    dataset = payload["dataset"]
+    if not isinstance(dataset, dict):
+        raise ValueError(f"Provenance du pin illisible (dataset) : {pin_path}.")
+    missing_dataset = [key for key in REQUIRED_DATASET_KEYS if not dataset.get(key)]
+    if missing_dataset:
+        raise ValueError(
+            "Provenance du pin incomplète "
+            f"(dataset.{', dataset.'.join(missing_dataset)}) : {pin_path}."
+        )
+    return payload

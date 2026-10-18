@@ -13,10 +13,11 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Suivi des tickets réorganisé par sous-système (2026-10-17, PR #70)** : les milestones de phase sont remplacés par les milestones de **sous-système** (`architecture-context.md` §Sous-systèmes fonctionnels) — **Data Platform**, **Estimation**, **Back-office**, **Marketplace** — et chaque phase est découpée en **tickets de module** (3 à 5 par phase), la phase restant portée par le préfixe du titre (`08a.2`, `13.4`). Les **29 tickets de module** sont #43 à #69, #72 et #73 — ces deux derniers complètent la phase 12 (déploiement et sécurité, vérification du retour arrière du modèle), non couverte par 12.1 à 12.4. Les tickets de phase #9 à #13 sont **fermés** avec un commentaire listant leurs tickets de remplacement, et les milestones de phase 08 à 12 sont fermés (les milestones 00 à 07 restent comme historique des issues fermées). Aucune issue ouverte n'est sans milestone. Décision : « pas de ticket trop lourd — un ticket par module ».
 - **08a.1 — socle de l'API publique terminé, vérifié et mergé (2026-10-17, PR #75)** — détails en « Completed » ci-dessous. Premier des cinq tickets de module de 08a : `backend/` n'était qu'un `.gitkeep` avant cet incrément.
 - **08a.2 — endpoint de prédiction terminé et vérifié (2026-10-18, PR #77)** — détails en « Completed » ci-dessous. Le modèle épinglé est désormais **servi** : `POST /api/v1/predictions` renvoie la fourchette calibrée de la Phase 6 et la version réellement chargée.
+- **08a.3 — provenance du modèle verrouillée (2026-10-18, ticket #52)** — détails en « Completed » ci-dessous. Arbitrage du porteur du projet : **re-promotion gouvernée** sur le mart courant (`rent-model-v4`, approbation nominative), plutôt qu'une simple mention documentaire de l'écart.
 
 ## Current Goal
 
-- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 », tickets de module) : **08a API publique** — **#50 livré** (socle, schémas stricts, erreurs au format unique), **#51 livré** (prédiction servie depuis le modèle épinglé), #52 (provenance du modèle épinglé), #53 (marché), #54 (comparaison) — puis **08b API interne** — #61 (authentification, rôle `admin`, audit). Le payload reste strictement limité aux champs réellement collectés ; les invariants de données sont protégés en CI par le lot C.
+- **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 », tickets de module) : **08a API publique** — **#50 livré** (socle, schémas stricts, erreurs au format unique), **#51 livré** (prédiction servie depuis le modèle épinglé), **#52 livré** (provenance verrouillée, `rent-model-v4`), #53 (marché), #54 (comparaison) — puis **08b API interne** — #61 (authentification, rôle `admin`, audit). Le payload reste strictement limité aux champs réellement collectés ; les invariants de données sont protégés en CI par le lot C.
 
 ## Completed
 
@@ -315,15 +316,39 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
   - **Vérifications** : `ruff` 0 erreur ; `pytest` **240 réussis** ; E2E réel sous `uvicorn` avec le
     modèle v3 épinglé — **200** `{"estimated_rent":109990,"currency":"XAF","lower_bound":80000,"upper_bound":150002,"model_version":"rent-model-v3"}`,
     deux appels identiques → réponses identiques.
-  - **Reste pour 08a** : #52 (provenance du pin), #53 (marché), #54 (comparaison).
+  - **Reste pour 08a** : #53 (marché), #54 (comparaison).
+
+- **08a.3 — provenance du modèle épinglé (ticket #52, 2026-10-18, branche `feat/08a.3-provenance-pin`)** :
+  - **Arbitrage** : le pin v3 décrivait `mart_ml_dataset@5050042e720e` (schéma d'avant le lot B)
+    alors que le mart vivant est `mart_ml_dataset@d3c11c225f48`. Décision du porteur du projet :
+    **re-promotion gouvernée** sur le mart courant, avec approbation nominative « Ibrahim Talla » —
+    pas une mention documentaire de l'écart.
+  - **Mise en œuvre** : `python -m ml.src registry --confirm-promotion --approved-by "Ibrahim Talla"`
+    → **`rent-model-v4`** (alias `champion` → 4), pin réécrit avec le dataset courant
+    (`d3c11c225f48`, 2 992 observations), rapport Phase 7 régénéré. `champion.json` n'a pas été
+    édité à la main.
+  - **Contrôles** : `backend/ml/loader.py::verify_pinned_version` exige que l'alias `champion`
+    pointe la **même version et la même URI** que le pin (alias déplacé → erreur explicite) ; le
+    pin doit porter sa provenance (`dataset.version`, `dataset.hash_md5`) ; `ml.src.registry.read_champion_pin`
+    refuse désormais un pin illisible ou incomplet (au lieu de rendre un contenu ambigu).
+  - **Contrôle avant serving** : nouvelle commande `python -m ml.src pin` — exit 0 avec la version et
+    le dataset épinglés, **exit 1** si le pin est absent, illisible ou incomplet (aucun déploiement
+    sur une provenance invérifiable).
+  - **Tests** : **9 nouveaux** (`test_backend_ml.py` : pin sans provenance, alias conforme, alias
+    déplacé, alias absent ; `test_ml_registry.py` : pin illisible, incomplet, sans provenance de
+    dataset, commande `pin` sur fichier absent et sur pin sain) ; fixture de serving isolée enrichie
+    d'un pin complet.
+  - **Vérifications** : `ruff` 0 erreur ; `pytest` **249 réussis** ; re-promotion réelle en CLI ;
+    E2E `uvicorn` — **200** `{"estimated_rent":109990,"currency":"XAF","lower_bound":80000,"upper_bound":150002,"model_version":"rent-model-v4"}`,
+    valeurs identiques à la v3, deux appels identiques → réponses identiques ; pin divergent refusé.
 
 ## In Progress
 
-- **Aucun lot en cours.** Le ticket de module **#51** (prédiction, 08a.2) est **terminé et vérifié** : PR **#77** (branche `feat/08a-predictions` → `develop`), 2026-10-18 ; CI verte (`ruff` 0, **240 tests réussis**, `dbt build` inchangé), E2E réel sous `uvicorn` avec le modèle v3 épinglé. Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
+- **Aucun lot en cours.** Le ticket de module **#52** (provenance verrouillée, 08a.3) est **terminé et vérifié** : branche `feat/08a.3-provenance-pin`, 2026-10-18 ; re-promotion gouvernée `rent-model-v4` sur le mart courant, `ruff` 0 erreur, **249 tests réussis**, E2E réel sous `uvicorn`. Le ticket de module **#51** (prédiction, 08a.2) est **terminé et vérifié** : PR **#77** (branche `feat/08a-predictions` → `develop`), 2026-10-18 ; CI verte (`ruff` 0, **240 tests réussis**, `dbt build` inchangé), E2E réel sous `uvicorn` avec le modèle v3 épinglé. Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
 
 ## Next Up
 
-- **Estimation** : #52 à #54 (08a.3 à 08a.5) — #50 (socle) et #51 (prédiction) livrés ; puis #55 à #58 (09a.1 à 09a.4,
+- **Estimation** : #53 et #54 (08a.4 et 08a.5) — #50 (socle), #51 (prédiction) et #52 (provenance) livrés ; puis #55 à #58 (09a.1 à 09a.4,
   interface publique), #59 (11.4 observabilité du modèle), #60 (12.4 tests d'intégration et bout en
   bout) et #73 (12.6 vérification du retour arrière du modèle).
 - **Back-office** : #61 (08b.1 socle API interne) puis #62 à #66 (13.1 sources, 13.2 datasets,
@@ -368,7 +393,7 @@ fichier versionné `ml/models/champion.json`.
 ## Open Questions
 
 - **Hygiène du registre (P2 partiel)** : la politique de rétention des runs n'est pas implémentée — l'expérience `rent_prediction` compte **84 runs** (cumul des exécutions). À traiter dans un lot ultérieur (plan §7.5) ; aucune suppression de version n'est automatique.
-- **Provenance du modèle épinglé — écart mesuré le 2026-10-17** : `ml/models/champion.json` (v3, approuvée le 2026-10-15) référence le dataset `mart_ml_dataset@5050042e720e`, alors que le mart vivant est `mart_ml_dataset@d3c11c225f48` (21 colonnes, 2 992 lignes, `rent_semantics` ajoutée par le lot B) — le hash de dataset couvre tout le contenu du mart depuis le lot A2, donc l'ajout de colonne a changé la version. Les features du modèle sont inchangées (7 features, `rent_semantics` n'en fait pas partie) : les prédictions restent valides, mais l'API publique exposerait un `model_version` dont la provenance ne décrit plus les données servies. À trancher (re-promotion gouvernée sur le mart courant **ou** mention explicite du schéma d'avant le lot B) — **ticket #52**.
+- **Provenance du modèle épinglé — résolu le 2026-10-18 (ticket #52)** : l'écart entre le pin v3 (`mart_ml_dataset@5050042e720e`, schéma d'avant le lot B) et le mart vivant (`mart_ml_dataset@d3c11c225f48`) est **clos** par une re-promotion gouvernée : `rent-model-v4`, approuvée le 2026-10-18 par « Ibrahim Talla », pin réécrit par la CLI. Le serving vérifie en plus que l'alias `champion` pointe bien la version et l'URI épinglées. Reste ouvert (hors ticket) : la cohérence pin ↔ mart n'est revérifiée qu'à la promotion, pas à chaque requête.
 - **Emplacement d'artefacts historique** : l'expérience `rent_prediction` conserve l'emplacement enregistré à sa création (`mlruns/3`) car MLflow n'expose pas de modification ; l'emplacement épinglé (`ml/artifacts/mlflow`) s'appliquera aux nouvelles expériences (documenté dans `docs/phase-7/README.md`).
 - **Prix censurés** : conservés avec `price_is_bound` (borne inférieure, 2 564 lignes sur 2 992) ; le seuil de la Phase 5 et la sélection de la Phase 6 sont mesurés sur toutes les observations. Décision prise (2026-10-15) : **adapter la cible et l'intervalle** — mise en œuvre dans le lot E, mesures à produire (lot E non commencé).
 - **Gain ML à démontrer** : **démontré** en Phase 6 — `random_forest_log1p` à 75 425 FCFA de MAE de validation (seuil 79 773), MedAE divisée par près de deux, gain confirmé sur 3 séparations (médian 12,35 %). Le seuil IC n'est franchi que sur 1 graine sur 3 : les arbitrages produit ne doivent pas reposer sur un écart inférieur à cette marge.

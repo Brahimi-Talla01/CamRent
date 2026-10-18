@@ -1,6 +1,6 @@
 # Phase 7 — Rapport du registre de modèles (MLflow)
 
-**Généré le :** 2026-10-15 07:13 UTC
+**Généré le :** 2026-10-18 15:04 UTC
 
 Objectif : tracer chaque expérience et versionner le modèle retenu, pour ne pas choisir un modèle « sur la base d'une impression » — et n'en déployer aucun qui ne soit enregistré (spec `context/feature-specs/07-model-registry.md`).
 
@@ -9,7 +9,7 @@ Objectif : tracer chaque expérience et versionner le modèle retenu, pour ne pa
 - **Expérience :** `rent_prediction` (identifiant `3`).
 - **URI de suivi :** `postgresql+psycopg://camrent:***@localhost:5433/mlflow`.
 - **Runs journalisés :** 12 candidats de la Phase 6 (chaque famille × transformation de cible).
-- **Dataset :** `analytics_marts.mart_ml_dataset` — 2 992 observations, version `mart_ml_dataset@5050042e720e` (hash de tout le contenu : schéma et valeurs).
+- **Dataset :** `analytics_marts.mart_ml_dataset` — 2 992 observations, version `mart_ml_dataset@d3c11c225f48` (hash de tout le contenu : schéma et valeurs).
 - **Version du code :** consignée dans chaque run (SHA Git + versions logicielles, ex. Python 3.14.4, scikit-learn 1.9.1).
 - **Cible :** `target_rent_price` en XAF, graine `20261009`.
 
@@ -17,26 +17,26 @@ Objectif : tracer chaque expérience et versionner le modèle retenu, pour ne pa
 
 | Candidat | Famille | Cible | MAE entraînement | MAE validation | MAE test | Run |
 |---|---|---|---|---|---|---|
-| `gradient_boosting_log1p` | ensemble d'arbres (boosting) | log1p | 89 512 | 75 161 | 162 361 | `ba137267` |
-| `lightgbm_log1p` | ensemble d'arbres (boosting) | log1p | 89 288 | 75 281 | 162 280 | `dde58b12` |
-| `random_forest_log1p` | ensemble d'arbres (bagging) | log1p | 84 880 | 75 425 | 159 130 | `860248a0` |
-| `random_forest_brut` | ensemble d'arbres (bagging) | brut | 95 670 | 79 065 | 166 064 | `369b28dc` |
-| `ridge_log1p` | linéaire régularisé | log1p | 94 671 | 82 032 | 166 734 | `05699c9e` |
-| `linear_log1p` | linéaire | log1p | 91 174 | 82 169 | 165 525 | `aa045889` |
-| `lightgbm_brut` | ensemble d'arbres (boosting) | brut | 100 277 | 83 021 | 172 409 | `d1a26f57` |
-| `gradient_boosting_brut` | ensemble d'arbres (boosting) | brut | 100 491 | 83 195 | 173 868 | `8f77c383` |
-| `ridge_brut` | linéaire régularisé | brut | 110 681 | 96 560 | 183 116 | `117f8924` |
-| `linear_brut` | linéaire | brut | 107 243 | 97 084 | 182 445 | `057acc1c` |
-| `lasso_brut` | linéaire régularisé | brut | 116 358 | 98 455 | 185 972 | `7f32899a` |
-| `lasso_log1p` | linéaire régularisé | log1p | 159 990 | 151 066 | 235 167 | `72e77b5b` |
+| `gradient_boosting_log1p` | ensemble d'arbres (boosting) | log1p | 89 512 | 75 161 | 162 361 | `ac1b1263` |
+| `lightgbm_log1p` | ensemble d'arbres (boosting) | log1p | 89 288 | 75 281 | 162 280 | `afe9e3e0` |
+| `random_forest_log1p` | ensemble d'arbres (bagging) | log1p | 84 880 | 75 425 | 159 130 | `77c7bf49` |
+| `random_forest_brut` | ensemble d'arbres (bagging) | brut | 95 670 | 79 065 | 166 064 | `3eb4f97b` |
+| `ridge_log1p` | linéaire régularisé | log1p | 94 671 | 82 032 | 166 734 | `205364e5` |
+| `linear_log1p` | linéaire | log1p | 91 174 | 82 169 | 165 525 | `a40347b2` |
+| `lightgbm_brut` | ensemble d'arbres (boosting) | brut | 100 277 | 83 021 | 172 409 | `9c5a3809` |
+| `gradient_boosting_brut` | ensemble d'arbres (boosting) | brut | 100 491 | 83 195 | 173 868 | `8f51b8e6` |
+| `ridge_brut` | linéaire régularisé | brut | 110 681 | 96 560 | 183 116 | `c4510be4` |
+| `linear_brut` | linéaire | brut | 107 243 | 97 084 | 182 445 | `548899ab` |
+| `lasso_brut` | linéaire régularisé | brut | 116 358 | 98 455 | 185 972 | `e9cb6374` |
+| `lasso_log1p` | linéaire régularisé | log1p | 159 990 | 151 066 | 235 167 | `3788ea21` |
 
 ## Modèle enregistré
 
-- **Étiquette :** `rent-model-v3` (nom `rent-model`, version 3).
+- **Étiquette :** `rent-model-v4` (nom `rent-model`, version 4).
 - **Alias :** `champion`
-- **Run source :** `860248a033df4c12a7b9912fb4d36944`.
+- **Run source :** `77c7bf49fb21431e882d6e98a9b43175`.
 - **Promu :** True.
-- **Approbation :** Ibrahim Talla (2026-10-15T07:13:15+00:00)
+- **Approbation :** Ibrahim Talla (2026-10-18T15:04:08+00:00)
 - **Version servie épinglée :** `ml/models/champion.json`
 
 ## Règle de promotion

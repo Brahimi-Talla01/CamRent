@@ -104,6 +104,18 @@ def build_parser() -> argparse.ArgumentParser:
         "(requis avec --confirm-promotion)",
     )
     registry_cmd.add_argument("--verbose", action="store_true")
+
+    pin_cmd = sub.add_parser(
+        "pin",
+        help="vérifier la version épinglée et sa provenance (contrôle avant serving, "
+        "Phase 8)",
+    )
+    pin_cmd.add_argument(
+        "--pin",
+        type=Path,
+        default=None,
+        help="chemin du fichier épinglé (défaut : ml/models/champion.json)",
+    )
     return parser
 
 
@@ -219,6 +231,26 @@ def run_registry_command(
     return 0
 
 
+def run_pin_command(pin_path: Path | None) -> int:
+    """Contrôle avant serving : le pin existe, se lit et décrit une version.
+
+    Retourne un code non nul dès que la provenance n'est pas exploitable : un
+    déploiement ne doit jamais démarrer sur un pin absent, illisible ou incomplet.
+    """
+    from . import registry  # import local (aucune dépendance lourde au chargement)
+
+    try:
+        pin = registry.read_champion_pin(pin_path)
+    except (OSError, ValueError) as exc:
+        print(f"[ERREUR] {exc}", file=sys.stderr)
+        return 1
+    dataset = pin["dataset"]
+    print(f"[OK] version épinglée : {pin['etiquette']} ({pin['model_uri']})")
+    print(f"     dataset : {dataset['version']} ({dataset['hash_md5'][:12]})")
+    print(f"     approbation : {pin.get('approuve_par') or 'non renseignée'}")
+    return 0
+
+
 def run(
     database_url: str | None,
     artifacts_dir: Path | None,
@@ -276,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
             include_lightgbm=not args.no_lightgbm,
             persist=not args.no_persist,
         )
+    if args.command == "pin":
+        return run_pin_command(args.pin)
     if args.command == "registry":
         approved_by: str | None = None
         if args.confirm_promotion:

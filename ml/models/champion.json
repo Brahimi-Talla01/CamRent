@@ -1,19 +1,19 @@
 {
   "pin_version": 1,
   "nom": "rent-model",
-  "version": 3,
-  "etiquette": "rent-model-v3",
+  "version": 4,
+  "etiquette": "rent-model-v4",
   "alias": "champion",
-  "run_id": "860248a033df4c12a7b9912fb4d36944",
-  "model_uri": "models:/m-c6923260e9304ba9bc24a939aeafa4a3",
+  "run_id": "77c7bf49fb21431e882d6e98a9b43175",
+  "model_uri": "models:/m-517f4fb9fc254aa58b5aa63f00cb7c55",
   "dataset": {
     "source": "analytics_marts.mart_ml_dataset",
-    "version": "mart_ml_dataset@5050042e720e",
-    "hash_md5": "5050042e720e1698e53cf9f420b44aeb",
+    "version": "mart_ml_dataset@d3c11c225f48",
+    "hash_md5": "d3c11c225f48abc36a99037d9b9f2ce9",
     "n_observations": 2992
   },
-  "git_sha": "051bf26ac0c5edd88b63eca1d5ae32d949d09d69",
+  "git_sha": "f1f98236b09e8bbc3610169f793be3e3c4f47417",
   "approuve_par": "Ibrahim Talla",
-  "approuve_le": "2026-10-15T07:13:15+00:00",
-  "ecrit_le": "2026-10-15T07:13:16+00:00"
+  "approuve_le": "2026-10-18T15:04:08+00:00",
+  "ecrit_le": "2026-10-18T15:04:08+00:00"
 }

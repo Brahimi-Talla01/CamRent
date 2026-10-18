@@ -35,8 +35,10 @@ from ml.src import config as ml_config
 
 logger = logging.getLogger(__name__)
 
-# Clés minimales sans lesquelles le pin ne désigne pas une version servable.
-REQUIRED_PIN_KEYS: tuple[str, ...] = ("etiquette", "model_uri")
+# Clés minimales sans lesquelles le pin ne désigne pas une version servable ni
+# la provenance des données sur lesquelles elle a été entraînée.
+REQUIRED_PIN_KEYS: tuple[str, ...] = ("etiquette", "model_uri", "dataset")
+REQUIRED_DATASET_KEYS: tuple[str, ...] = ("version", "hash_md5")
 
 
 class ServingError(RuntimeError):
@@ -78,11 +80,63 @@ def read_champion_pin(path: Path | None = None) -> dict[str, Any]:
     missing = [key for key in REQUIRED_PIN_KEYS if not payload.get(key)]
     if missing:
         raise ServingError(f"Version épinglée incomplète ({', '.join(missing)}) : {pin_path}.")
+    dataset = payload["dataset"]
+    if not isinstance(dataset, dict):
+        raise ServingError(f"Provenance du pin illisible (dataset) : {pin_path}.")
+    missing_dataset = [key for key in REQUIRED_DATASET_KEYS if not dataset.get(key)]
+    if missing_dataset:
+        raise ServingError(
+            "Provenance du pin incomplète "
+            f"(dataset.{', dataset.'.join(missing_dataset)}) : {pin_path}."
+        )
     return payload
 
 
+def verify_pinned_version(pin: dict[str, Any], *, client: Any | None = None) -> None:
+    """Vérifie que le registre sert bien la version épinglée.
+
+    Un pin n'est une provenance que s'il correspond à la réalité du registre :
+    l'alias de référence doit pointer la **même version** et le **même artefact**
+    que le fichier de pin. Un alias déplacé à la main, une version supprimée ou
+    un pin divergent sont donc refusés explicitement, jamais servis en silence.
+
+    Raises:
+        ServingError: alias introuvable ou incohérence version / URI.
+    """
+    if client is None:
+        try:
+            import mlflow
+            from mlflow import MlflowClient
+
+            from ml.src import tracking
+        except ImportError as exc:  # pragma: no cover - extra `ml` installé dans la CI
+            raise ServingError(
+                "Dépendance MLflow absente (extra `ml`) : provenance non vérifiable."
+            ) from exc
+        mlflow.set_tracking_uri(tracking.resolve_tracking_uri())
+        client = MlflowClient()
+    name = str(pin.get("nom") or ml_config.REGISTERED_MODEL_NAME)
+    alias = str(pin.get("alias") or ml_config.REGISTERED_MODEL_ALIAS)
+    try:
+        version = client.get_model_version_by_alias(name, alias)
+    except Exception as exc:  # frontière de serving : échec explicite
+        logger.error("Alias de référence introuvable (%s)", type(exc).__name__)
+        raise ServingError(
+            f"Alias `{alias}` introuvable pour le modèle `{name}` : provenance du "
+            "modèle servi non vérifiable."
+        ) from exc
+    if str(version.version) != str(pin.get("version")) or str(version.source) != str(
+        pin.get("model_uri")
+    ):
+        raise ServingError(
+            f"Provenance incohérente : l'alias `{alias}` pointe {name}-v{version.version} "
+            f"({version.source}) alors que le pin sert {pin.get('etiquette')} "
+            f"({pin.get('model_uri')})."
+        )
+
+
 def load_model_from_registry(pin: dict[str, Any]) -> Any:
-    """Charge le pipeline à l'URI épinglée du registre MLflow.
+    """Charge le pipeline à l'URI épinglée du registre MLflow, provenance vérifiée.
 
     L'import de MLflow est paresseux : l'application démarre et sert la santé
     sans que la dépendance ne soit chargée.
@@ -97,6 +151,7 @@ def load_model_from_registry(pin: dict[str, Any]) -> Any:
             "Dépendance MLflow absente (extra `ml`) : modèle épinglé injoignable."
         ) from exc
     mlflow.set_tracking_uri(tracking.resolve_tracking_uri())
+    verify_pinned_version(pin)
     try:
         return mlflow.sklearn.load_model(str(pin["model_uri"]))
     except Exception as exc:  # frontière de serving : échec explicite, jamais silencieux

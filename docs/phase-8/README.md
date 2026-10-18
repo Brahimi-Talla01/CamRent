@@ -1,4 +1,4 @@
-# Phase 8 — API publique : socle (08a.1), prédiction (08a.2) et provenance (08a.3)
+# Phase 8 — API publique : socle (08a.1), prédiction (08a.2), provenance et serving durci (08a.3)
 
 Objectif (spec : `context/feature-specs/08-api.md`) : exposer le modèle et les données de
 marché via une API backend claire, versionnée et reproductible.
@@ -77,11 +77,11 @@ Points de conception :
   (`model_uri`), pas depuis un fichier local implicite. `model_version` est l'étiquette
   du pin, identique à chaque réponse tant que le pin ne change pas.
 - **Fourchette par le modèle retenu** : l'intervalle **quantile** 5 % / 95 % déjà
-  calibré en Phase 6, chargé depuis l'artefact local
-  `ml/models/rent_model_v1_intervalle.joblib` (décision du porteur du projet,
-  2026-10-17). Ce fichier n'est pas versionné : s'il manque, le service échoue
-  explicitement plutôt que de servir une estimation sans fourchette — jamais de
-  fourchette improvisée, jamais d'application de pourcentage arbitraire.
+  calibré en Phase 6 est journalisé avec le modèle et relu dans les **artefacts du
+  run épinglé** (`pin.run_id`). Une seule version est donc servie — modèle et
+  fourchette — sans fichier local implicite. Si l'artefact manque, le service
+  échoue explicitement plutôt que de servir une estimation sans fourchette :
+  jamais de fourchette improvisée, jamais de pourcentage arbitraire.
 - **Domaine servi** : le service refuse tout couple (ville, quartier) que le modèle
   chargé n'a jamais vu à l'entraînement — **404 `not_found`**. C'est nécessaire : hors
   domaine, le pipeline traiterait silencieusement la saisie (profondeur de marché nulle,
@@ -127,10 +127,15 @@ Trois contrôles rendent un écart **impossible à servir en silence** :
 3. **Lecture défensive** : un fichier absent, illisible ou non JSON échoue avec un message
    qui nomme le fichier (et, côté CLI, un code de sortie non nul).
 
-Un quatrième point reste **documenté plutôt que vérifié automatiquement** : le serving ne
-relit pas le mart à chaque requête (ce serait un couplage base → serving et un coût par
-appel). La cohérence pin ↔ mart se vérifie donc à la promotion, en rejouant la CLI sur le
-mart courant — c'est cette re-promotion qui a produit la v4.
+Deux conséquences pour le déploiement, vérifiées à part plutôt qu'à chaque requête :
+
+- **Préflight pin ↔ mart** : `python -m ml.src pin --check-dataset` compare le hash du pin
+  au mart vivant et sort en **erreur (code 1)** en cas de dérive ; le serving ne relit pas
+  la base à chaque appel (couplage et coût injustifiés) ;
+- **Une seule provenance d'artefacts** : modèle **et** intervalle viennent du run épinglé du
+  registre — plus de fichier local non versionné dont la correspondance avec le modèle ne
+  serait vérifiable qu'à la main. C'est aussi ce qui rend le chemin de production testable
+  en CI (`tests/unit/test_serving_registry.py`, registre MLflow SQLite).
 
 ### Schéma d'entrée strict
 
@@ -227,6 +232,9 @@ Vérifications de l'incrément de provenance (#52, 2026-10-18) :
 | prédiction réelle | **200** — mêmes valeurs qu'en v3 (features inchangées), `model_version` = `rent-model-v4`, deux `POST` identiques → réponses identiques |
 | lecture défensive | pin absent → `FileNotFoundError` ; pin illisible / incomplet / sans `dataset.hash_md5` → erreur explicite nommant le fichier ou les clés |
 | contrôle avant serving | `python -m ml.src pin` → **exit 0** avec `rent-model-v4` / `mart_ml_dataset@d3c11c225f48` ; pin absent → **exit 1** et message nommant le fichier |
+| préflight pin ↔ mart | `python -m ml.src pin --check-dataset` → **exit 0** (mart vivant conforme) ; pin périmé → **exit 1** nommant les deux versions ; base injoignable → **exit 1** |
+| intervalle servi depuis le registre | fichier local `ml/models/rent_model_v1_intervalle.joblib` **retiré** : la prédiction reste **200** et identique (mêmes bornes) |
+| test d'intégration en CI | `tests/unit/test_serving_registry.py` : registre MLflow **SQLite** + artefacts temporaires → modèle et intervalle chargés, alias périmé refusé, artefact absent signalé |
 | fixture isolé | le serving est testé **sans** registre, sans base et sans artefact du poste (fixture `tests/unit/serving_fixture.py`) — exécuté en CI |
 
 ## Lancer et rejouer
@@ -248,17 +256,18 @@ python -m pytest tests/unit/test_api_*.py -q   # tests de l'incrément
 
 - **Endpoints restants** : marché (#53) et comparaison (#54) restent à livrer ; l'API
   n'affiche encore aucune donnée de marché.
-- **Provenance du modèle** : le pin décrit désormais le mart vivant (`rent-model-v4`,
-  `mart_ml_dataset@d3c11c225f48`) et l'alias `champion` est vérifié au chargement. La
-  cohérence pin ↔ mart n'est pas revérifiée à chaque requête : elle l'est à la promotion,
-  en rejouant la CLI sur le mart courant.
-- **Fourchette liée à un artefact local** : l'intervalle calibré vient d'un fichier non
-  versionné (`ml/models/rent_model_v1_intervalle.joblib`) — sa présence est exigée au
-  chargement (erreur explicite sinon), mais un déploiement sur une machine neuve doit le
-  régénérer (`python -m ml.src models`) ou le transférer. Couplage toujours ouvert.
-- **Chargement réel** : les tests unitaires et la CI utilisent un fixture de modèle isolé
-  (sans registre, sans base, sans artefact du poste) ; le chargement depuis le registre
-  MLflow n'est exercé que sur le poste de développement, faute de registre en CI.
+- **Provenance du modèle** : le pin décrit le mart vivant (`rent-model-v4`,
+  `mart_ml_dataset@d3c11c225f48`), l'alias `champion` est vérifié au chargement et le
+  préflight `python -m ml.src pin --check-dataset` compare le pin au mart avant
+  déploiement. La cohérence n'est volontairement **pas** revérifiée à chaque requête
+  (ce serait un couplage base → serving, coûteux et inutile par appel).
+- **Registre indispensable au serving** : modèle et intervalle viennent du registre
+  MLflow. Un poste sans registre joignable ne peut pas servir — c'est le prix d'une
+  provenance unique et vérifiable.
+- **Chargement réel** : le chemin de production (registre + artefacts du run épinglé)
+  est exercé **en CI** par `tests/unit/test_serving_registry.py` (MLflow SQLite et
+  artefacts temporaires) ; le fixture isolé reste utilisé pour les tests rapides de
+  logique métier.
 - **Avertissement de bibliothèque** : `starlette.testclient` signale que l'usage d'`httpx`
   est déprécié au profit d'`httpx2`. Le test fonctionne ; c'est un choix de dépendance à
   réévaluer lors d'une montée de version de Starlette.

@@ -39,7 +39,7 @@ def _client(bundle: ServingBundle, tmp_path: Path, *, failing: bool = False) -> 
     provider = PinnedModelProvider(
         pin_path=write_pin(tmp_path),
         model_loader=model_loader,
-        interval_loader=lambda: bundle.interval,
+        interval_loader=lambda pin: bundle.interval,
     )
     app = create_app()
     app.dependency_overrides[predictions_route.get_estimation_service] = lambda: (

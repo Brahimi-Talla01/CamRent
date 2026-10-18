@@ -52,14 +52,14 @@ def provider(pin_path: Path, bundle: ServingBundle) -> PinnedModelProvider:
     return PinnedModelProvider(
         pin_path=pin_path,
         model_loader=lambda pin: bundle.model,
-        interval_loader=lambda: bundle.interval,
+        interval_loader=lambda pin: bundle.interval,
     )
 
 
 def test_default_paths_point_to_the_pinned_artifacts() -> None:
-    """Les chemins par défaut sont ceux du dépôt, jamais écrits ailleurs."""
+    """Le pin est versionné ; l'intervalle est un artefact du run épinglé."""
     assert loader.champion_pin_path().name == "champion.json"
-    assert loader.interval_path().name == "rent_model_v1_intervalle.joblib"
+    assert loader.interval_artifact_name() == "rent_model_v1_intervalle.joblib"
 
 
 def test_missing_pin_is_an_explicit_error(tmp_path: Path) -> None:
@@ -153,9 +153,18 @@ def test_provenance_check_refuses_a_missing_alias() -> None:
 def test_missing_interval_is_an_explicit_error(tmp_path: Path) -> None:
     """Sans fourchette calibrée, rien n'est servi (jamais de fourchette improvisée)."""
     with pytest.raises(ServingError) as exc_info:
-        loader.load_interval(tmp_path / "rent_model_v1_intervalle.joblib")
+        loader.load_interval(path=tmp_path / "rent_model_v1_intervalle.joblib")
 
     assert "Intervalle de prédiction introuvable" in str(exc_info.value)
+
+
+def test_pin_without_run_id_cannot_locate_the_interval() -> None:
+    """L'intervalle vient du run épinglé : un pin sans `run_id` est refusé."""
+    payload = pin_payload()
+    payload.pop("run_id")
+
+    with pytest.raises(ServingError, match="sans `run_id`"):
+        loader.load_interval(payload)
 
 
 def test_provider_loads_the_bundle_once(tmp_path: Path, bundle: ServingBundle) -> None:
@@ -165,7 +174,7 @@ def test_provider_loads_the_bundle_once(tmp_path: Path, bundle: ServingBundle) -
         calls["model"] += 1
         return bundle.model
 
-    def interval_loader() -> object:
+    def interval_loader(pin: dict) -> object:
         calls["interval"] += 1
         return bundle.interval
 
@@ -260,7 +269,7 @@ def test_inverted_or_negative_bounds_are_floored(
     provider = PinnedModelProvider(
         pin_path=pin_path,
         model_loader=lambda pin: bundle.model,
-        interval_loader=_BrokenInterval,
+        interval_loader=lambda pin: _BrokenInterval(),
     )
 
     response = service.EstimationService(provider).estimate(VALID_REQUEST)

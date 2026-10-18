@@ -13,7 +13,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 - **Suivi des tickets réorganisé par sous-système (2026-10-17, PR #70)** : les milestones de phase sont remplacés par les milestones de **sous-système** (`architecture-context.md` §Sous-systèmes fonctionnels) — **Data Platform**, **Estimation**, **Back-office**, **Marketplace** — et chaque phase est découpée en **tickets de module** (3 à 5 par phase), la phase restant portée par le préfixe du titre (`08a.2`, `13.4`). Les **29 tickets de module** sont #43 à #69, #72 et #73 — ces deux derniers complètent la phase 12 (déploiement et sécurité, vérification du retour arrière du modèle), non couverte par 12.1 à 12.4. Les tickets de phase #9 à #13 sont **fermés** avec un commentaire listant leurs tickets de remplacement, et les milestones de phase 08 à 12 sont fermés (les milestones 00 à 07 restent comme historique des issues fermées). Aucune issue ouverte n'est sans milestone. Décision : « pas de ticket trop lourd — un ticket par module ».
 - **08a.1 — socle de l'API publique terminé, vérifié et mergé (2026-10-17, PR #75)** — détails en « Completed » ci-dessous. Premier des cinq tickets de module de 08a : `backend/` n'était qu'un `.gitkeep` avant cet incrément.
 - **08a.2 — endpoint de prédiction terminé et vérifié (2026-10-18, PR #77)** — détails en « Completed » ci-dessous. Le modèle épinglé est désormais **servi** : `POST /api/v1/predictions` renvoie la fourchette calibrée de la Phase 6 et la version réellement chargée.
-- **08a.3 — provenance du modèle verrouillée (2026-10-18, ticket #52)** — détails en « Completed » ci-dessous. Arbitrage du porteur du projet : **re-promotion gouvernée** sur le mart courant (`rent-model-v4`, approbation nominative), plutôt qu'une simple mention documentaire de l'écart.
+- **08a.3 — provenance du modèle verrouillée (2026-10-18, ticket #52, PR #78)** — détails en « Completed » ci-dessous. Arbitrage du porteur du projet : **re-promotion gouvernée** sur le mart courant (`rent-model-v4`, approbation nominative), plutôt qu'une simple mention documentaire de l'écart.
 
 ## Current Goal
 
@@ -318,7 +318,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     deux appels identiques → réponses identiques.
   - **Reste pour 08a** : #53 (marché), #54 (comparaison).
 
-- **08a.3 — provenance du modèle épinglé (ticket #52, 2026-10-18, branche `feat/08a.3-provenance-pin`)** :
+- **08a.3 — provenance du modèle épinglé (ticket #52, 2026-10-18, PR #78 `feat/08a.3-provenance-pin`, squash `e9eb0dc`)** :
   - **Arbitrage** : le pin v3 décrivait `mart_ml_dataset@5050042e720e` (schéma d'avant le lot B)
     alors que le mart vivant est `mart_ml_dataset@d3c11c225f48`. Décision du porteur du projet :
     **re-promotion gouvernée** sur le mart courant, avec approbation nominative « Ibrahim Talla » —
@@ -338,13 +338,14 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
     déplacé, alias absent ; `test_ml_registry.py` : pin illisible, incomplet, sans provenance de
     dataset, commande `pin` sur fichier absent et sur pin sain) ; fixture de serving isolée enrichie
     d'un pin complet.
-  - **Vérifications** : `ruff` 0 erreur ; `pytest` **249 réussis** ; re-promotion réelle en CLI ;
+  - **Vérifications** : `ruff` 0 erreur ; `pytest` **249 réussis en local et en CI** ; `dbt build`
+    **137/137 en CI** ; re-promotion réelle en CLI ;
     E2E `uvicorn` — **200** `{"estimated_rent":109990,"currency":"XAF","lower_bound":80000,"upper_bound":150002,"model_version":"rent-model-v4"}`,
     valeurs identiques à la v3, deux appels identiques → réponses identiques ; pin divergent refusé.
 
 ## In Progress
 
-- **Aucun lot en cours.** Le ticket de module **#52** (provenance verrouillée, 08a.3) est **terminé et vérifié** : branche `feat/08a.3-provenance-pin`, 2026-10-18 ; re-promotion gouvernée `rent-model-v4` sur le mart courant, `ruff` 0 erreur, **249 tests réussis**, E2E réel sous `uvicorn`. Le ticket de module **#51** (prédiction, 08a.2) est **terminé et vérifié** : PR **#77** (branche `feat/08a-predictions` → `develop`), 2026-10-18 ; CI verte (`ruff` 0, **240 tests réussis**, `dbt build` inchangé), E2E réel sous `uvicorn` avec le modèle v3 épinglé. Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
+- **Aucun lot en cours.** Le ticket de module **#52** (provenance verrouillée, 08a.3) est **terminé, vérifié et mergé** : PR **#78** (branche `feat/08a.3-provenance-pin` → `develop`, squash `e9eb0dc`), 2026-10-18 ; CI verte (`ruff` 0, **249 tests réussis**, `dbt build` 137/137), re-promotion gouvernée `rent-model-v4` sur le mart courant, E2E réel sous `uvicorn` ; branche supprimée après fusion, issue #52 close. Le ticket de module **#51** (prédiction, 08a.2) est **terminé et vérifié** : PR **#77** (branche `feat/08a-predictions` → `develop`), 2026-10-18 ; CI verte (`ruff` 0, **240 tests réussis**, `dbt build` inchangé), E2E réel sous `uvicorn` avec le modèle v3 épinglé. Le ticket de module **#50** (socle de l'API publique, 08a.1) est **terminé, vérifié et mergé** : PR **#75** (branche `feat/08a-api-socle` → `develop`), 2026-10-17 ; CI verte (`ruff` 0, **220 tests réussis** dont les 38 nouveaux, `dbt build` 137/137). Le lot C est **terminé, vérifié et mergé** : PR **#37** (branche `chore/ci-data-tests-on-postgres` → `develop`), fusionné le 2026-10-16 ; pipeline de la PR **verte** — `ruff` 0 erreur, `pytest` **182 réussis / 0 ignoré** en CI, chargement 360/48/3, `dbt build` **137/137 en CI** (le premier run avait échoué avant démarrage : `${{ runner.temp }}` n'est pas lisible au niveau env de job — corrigé par `GITHUB_ENV`). Le lot B est **terminé, vérifié et mergé** : PR **#35** (branche `lot-b-qualite-donnees` → `develop`), squash `627784e`, fusionné le 2026-10-16 ; pipeline CI vertes après la PR et après le merge (`ruff` 0 erreur, **176 tests réussis, 0 ignoré** dans CI — `pyarrow` y est installé). Les branches ont été supprimées après fusion.
 
 ## Next Up
 

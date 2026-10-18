@@ -1,4 +1,4 @@
-# Phase 8 — API publique : socle (08a.1)
+# Phase 8 — API publique : socle (08a.1) et prédiction (08a.2)
 
 Objectif (spec : `context/feature-specs/08-api.md`) : exposer le modèle et les données de
 marché via une API backend claire, versionnée et reproductible.

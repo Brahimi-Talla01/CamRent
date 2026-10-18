@@ -136,7 +136,12 @@ python -m ml.src registry
   de données comprise) au lieu de rendre un contenu ambigu.
 - Contrôle avant serving : `python -m ml.src pin` imprime la version épinglée, son
   dataset et son approbation ; il sort en **erreur (code 1)** si le pin est absent,
-  illisible ou incomplet.
+  illisible ou incomplet. Avec `--check-dataset`, il compare en plus le hash du pin
+  au mart vivant (base requise) : une dérive est une erreur, jamais un
+  avertissement.
+- Le run retenu journalise **modèle et intervalle calibré** : l'API les relit tous
+  les deux dans les artefacts de ce run (`pin.run_id`), donc une seule version est
+  servie — aucune copie locale non versionnée à synchroniser à la main.
 - Une promotion sans approbation s'arrête **avant toute écriture** : vérifié en
   CLI (exit 1, registre inchangé, aucun fichier épinglé créé).
 - Vérifications du lot : `ruff` 0 erreur ; `pytest` **161 réussis, 1 ignoré**

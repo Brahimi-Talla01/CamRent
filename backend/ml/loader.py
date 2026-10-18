@@ -6,15 +6,12 @@ explicitement de servir si cette version ou son intervalle calibré sont
 indisponibles — jamais d'estimation sans fourchette, jamais de fourchette
 improvisée.
 
-Deux sources, tranchées par le porteur du projet (2026-10-17) :
-
-- le **modèle** vient du registre MLflow, à l'URI épinglée dans le fichier de
-  pin (`model_uri`) : aucun fichier de modèle local implicite ;
-- la **fourchette** (régression quantile 5 % / 95 %, déjà calibrée en Phase 6)
-  vient de l'artefact local `ml/models/rent_model_v1_intervalle.joblib`,
-  régénérable par `python -m ml.src models`. Ce fichier n'est pas versionné :
-  son absence est une erreur explicite, jamais contournée (couplage documenté
-  dans `docs/phase-8/README.md`).
+Une seule source, gouvernée : le **registre MLflow**. Le modèle est chargé à
+l'URI épinglée (`model_uri`) et la **fourchette** (régression quantile 5 % / 95 %,
+calibrée en Phase 6) est relue dans les artefacts du **run épinglé** — elle y est
+journalisée avec le modèle lors de la promotion (Phase 7). Aucun fichier local
+implicite, donc aucune version d'intervalle qui pourrait diverger de la version
+servie ; c'est aussi ce qui rend le serving testable en CI.
 
 Aucun secret n'est lu ici : l'URI de suivi MLflow suit les mêmes règles que la
 Phase 7 (`MLFLOW_TRACKING_URI`, sinon base dérivée de `DATABASE_URL`), et les
@@ -50,9 +47,9 @@ def champion_pin_path() -> Path:
     return ml_config.CHAMPION_PIN_PATH
 
 
-def interval_path() -> Path:
-    """Chemin de l'intervalle calibré (artefact Phase 6, régénérable, non versionné)."""
-    return ml_config.MODELS_DIR / f"{ml_config.MODEL_ARTIFACT_NAME}_intervalle.joblib"
+def interval_artifact_name() -> str:
+    """Nom de l'intervalle calibré journalisé avec le modèle (Phase 7)."""
+    return f"{ml_config.MODEL_ARTIFACT_NAME}_intervalle.joblib"
 
 
 def read_champion_pin(path: Path | None = None) -> dict[str, Any]:
@@ -162,18 +159,10 @@ def load_model_from_registry(pin: dict[str, Any]) -> Any:
         ) from exc
 
 
-def load_interval(path: Path | None = None) -> Any:
-    """Charge l'intervalle quantile déjà calibré (artefact Phase 6).
-
-    La fourchette n'est jamais improvisée : sans cet artefact, le modèle servi
-    n'a pas sa fourchette calibrée et l'API refuse de répondre.
-    """
-    artifact = Path(path) if path is not None else interval_path()
+def _load_interval_file(artifact: Path) -> Any:
+    """Charge un intervalle depuis un fichier (inspection, tests, diagnostic)."""
     if not artifact.is_file():
-        raise ServingError(
-            f"Intervalle de prédiction introuvable : {artifact}. Rejouer "
-            "`python -m ml.src models` pour régénérer la fourchette calibrée."
-        )
+        raise ServingError(f"Intervalle de prédiction introuvable : {artifact}.")
     try:
         import joblib
 
@@ -181,6 +170,55 @@ def load_interval(path: Path | None = None) -> Any:
     except Exception as exc:  # frontière de serving : échec explicite, jamais silencieux
         logger.error("Chargement de l'intervalle échoué (%s)", type(exc).__name__)
         raise ServingError(f"Intervalle de prédiction illisible : {artifact}.") from exc
+
+
+def load_interval(pin: dict[str, Any] | None = None, *, path: Path | None = None) -> Any:
+    """Charge l'intervalle calibré **du run épinglé** (artefact Phase 7).
+
+    La fourchette vient du même run que le modèle : une seule version est donc
+    servie, et l'intervalle n'est plus un fichier local non versionné dont la
+    correspondance avec le modèle ne serait vérifiable qu'à la main.
+
+    Args:
+        pin: pin du modèle servi (défaut : `ml/models/champion.json`).
+        path: fichier d'intervalle explicite (inspection et tests uniquement).
+
+    Raises:
+        ServingError: pin sans `run_id`, artefact absent du run, registre
+            injoignable ou intervalle illisible.
+    """
+    if path is not None:
+        return _load_interval_file(Path(path))
+    if pin is None:
+        pin = read_champion_pin()
+    run_id = str(pin.get("run_id") or "")
+    if not run_id:
+        raise ServingError(
+            "Pin sans `run_id` : l'intervalle calibré du modèle servi n'est pas "
+            "localisable (relancer la promotion pour réécrire le pin)."
+        )
+    try:
+        import mlflow
+
+        from ml.src import tracking
+    except ImportError as exc:  # pragma: no cover - extra `ml` installé dans la CI
+        raise ServingError(
+            "Dépendance MLflow absente (extra `ml`) : intervalle épinglé injoignable."
+        ) from exc
+    uri = tracking.resolve_tracking_uri()
+    try:
+        artifact = mlflow.artifacts.download_artifacts(
+            run_id=run_id,
+            artifact_path=interval_artifact_name(),
+            tracking_uri=uri,
+        )
+    except Exception as exc:  # frontière de serving : échec explicite
+        logger.error("Téléchargement de l'intervalle échoué (%s)", type(exc).__name__)
+        raise ServingError(
+            f"Intervalle de prédiction absent du run épinglé ({run_id}) : registre "
+            "MLflow injoignable ou artefact non journalisé."
+        ) from exc
+    return _load_interval_file(Path(artifact))
 
 
 @dataclass(frozen=True)
@@ -198,7 +236,7 @@ class ServingBundle:
 
 
 ModelLoader = Callable[[dict[str, Any]], Any]
-IntervalLoader = Callable[[], Any]
+IntervalLoader = Callable[[dict[str, Any]], Any]
 
 
 class PinnedModelProvider:
@@ -229,6 +267,6 @@ class PinnedModelProvider:
             if self._bundle is None:
                 pin = read_champion_pin(self._pin_path)
                 model = (self._model_loader or load_model_from_registry)(pin)
-                interval = (self._interval_loader or load_interval)()
+                interval = (self._interval_loader or load_interval)(pin)
                 self._bundle = ServingBundle(pin=pin, model=model, interval=interval)
         return self._bundle

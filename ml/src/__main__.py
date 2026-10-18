@@ -116,6 +116,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="chemin du fichier épinglé (défaut : ml/models/champion.json)",
     )
+    pin_cmd.add_argument(
+        "--check-dataset",
+        action="store_true",
+        help="comparer la provenance du pin au mart vivant (base requise) ; exit 1 en "
+        "cas de dérive",
+    )
     return parser
 
 
@@ -231,11 +237,41 @@ def run_registry_command(
     return 0
 
 
-def run_pin_command(pin_path: Path | None) -> int:
+def check_pin_dataset(pin: dict) -> int:
+    """Compare la provenance du pin au mart vivant (préflight de déploiement).
+
+    La cohérence pin ↔ mart n'est pas vérifiée à chaque requête (ce serait un
+    couplage base → serving) : elle l'est ici, avant déploiement, sur le mart que
+    l'API servira. Une dérive est une erreur, jamais un avertissement.
+    """
+    from . import data, tracking
+
+    try:
+        frame = data.load_ml_dataset()
+    except (RuntimeError, ValueError, OSError) as exc:
+        print(f"[ERREUR] mart vivant illisible : {exc}", file=sys.stderr)
+        return 1
+    live = tracking.dataset_version(frame)
+    pinned = pin["dataset"]
+    if live["hash_md5"] != pinned["hash_md5"]:
+        print(
+            "[ERREUR] provenance périmée : le pin décrit "
+            f"{pinned['version']} alors que le mart vivant est {live['version']} "
+            f"({live['n_observations']} observations). Rejouer "
+            "`python -m ml.src registry --confirm-promotion --approved-by <nom>`.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"     mart vivant : {live['version']} — conforme au pin")
+    return 0
+
+
+def run_pin_command(pin_path: Path | None, *, check_dataset: bool = False) -> int:
     """Contrôle avant serving : le pin existe, se lit et décrit une version.
 
     Retourne un code non nul dès que la provenance n'est pas exploitable : un
     déploiement ne doit jamais démarrer sur un pin absent, illisible ou incomplet.
+    Avec `--check-dataset`, la provenance est en plus comparée au mart vivant.
     """
     from . import registry  # import local (aucune dépendance lourde au chargement)
 
@@ -248,6 +284,8 @@ def run_pin_command(pin_path: Path | None) -> int:
     print(f"[OK] version épinglée : {pin['etiquette']} ({pin['model_uri']})")
     print(f"     dataset : {dataset['version']} ({dataset['hash_md5'][:12]})")
     print(f"     approbation : {pin.get('approuve_par') or 'non renseignée'}")
+    if check_dataset:
+        return check_pin_dataset(pin)
     return 0
 
 
@@ -309,7 +347,7 @@ def main(argv: list[str] | None = None) -> int:
             persist=not args.no_persist,
         )
     if args.command == "pin":
-        return run_pin_command(args.pin)
+        return run_pin_command(args.pin, check_dataset=args.check_dataset)
     if args.command == "registry":
         approved_by: str | None = None
         if args.confirm_promotion:

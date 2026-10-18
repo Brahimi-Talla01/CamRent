@@ -296,6 +296,77 @@ def test_pin_command_prints_the_pinned_provenance(tmp_path, capsys) -> None:
     assert "mart_ml_dataset@d3c11c225f48" in captured
 
 
+def _write_pin(tmp_path, dataset: dict[str, object]):
+    pin = tmp_path / "champion.json"
+    pin.write_text(
+        json.dumps(
+            {
+                "nom": "rent-model",
+                "version": 4,
+                "etiquette": "rent-model-v4",
+                "model_uri": "models:/m-1",
+                "dataset": dataset,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return pin
+
+
+def test_pin_check_detects_a_dataset_drift(tmp_path, capsys, monkeypatch) -> None:
+    """Le préflight de déploiement refuse un pin qui ne décrit plus le mart."""
+    from ml.src import __main__ as cli
+    from ml.src import data
+
+    pin = _write_pin(
+        tmp_path,
+        {
+            "source": "analytics_marts.mart_ml_dataset",
+            "version": "mart_ml_dataset@aabbccddeeff",
+            "hash_md5": "aabbccddeeff" + "0" * 20,
+        },
+    )
+    frame = pd.DataFrame({"listing_key": ["a", "b"], "target_rent_price": [1, 2]})
+    monkeypatch.setattr(data, "load_ml_dataset", lambda *a, **k: frame)
+
+    assert cli.main(["pin", "--pin", str(pin), "--check-dataset"]) == 1
+    assert "provenance périmée" in capsys.readouterr().err
+
+
+def test_pin_check_accepts_a_matching_dataset(tmp_path, capsys, monkeypatch) -> None:
+    from ml.src import __main__ as cli
+    from ml.src import data, tracking
+
+    dataset = {
+        "source": "analytics_marts.mart_ml_dataset",
+        "version": "mart_ml_dataset@aabbccddeeff",
+        "hash_md5": "aabbccddeeff" + "0" * 20,
+        "n_observations": 24,
+    }
+    pin = _write_pin(tmp_path, dataset)
+    monkeypatch.setattr(data, "load_ml_dataset", lambda *a, **k: pd.DataFrame())
+    monkeypatch.setattr(tracking, "dataset_version", lambda frame: dict(dataset))
+
+    assert cli.main(["pin", "--pin", str(pin), "--check-dataset"]) == 0
+    assert "conforme au pin" in capsys.readouterr().out
+
+
+def test_pin_check_fails_without_a_reachable_mart(tmp_path, capsys, monkeypatch) -> None:
+    """Base injoignable : le préflight échoue, il ne suppose pas la conformité."""
+    from ml.src import __main__ as cli
+    from ml.src import data
+
+    pin = _write_pin(tmp_path, {"source": "s", "version": "v", "hash_md5": "0" * 32})
+
+    def boom(*args, **kwargs):
+        raise RuntimeError("DATABASE_URL est requise")
+
+    monkeypatch.setattr(data, "load_ml_dataset", boom)
+
+    assert cli.main(["pin", "--pin", str(pin), "--check-dataset"]) == 1
+    assert "mart vivant illisible" in capsys.readouterr().err
+
+
 def test_report_never_shows_an_absolute_path() -> None:
     """Le rapport est versionné : un chemin absolu le rendrait non reproductible."""
     assert registry_report.display_path(str(config.CHAMPION_PIN_PATH)) == (

@@ -189,6 +189,33 @@ models:
           - within_range:
               arguments:
                 min_value: 0
+      # Qualité visible, jamais masquée (invariant 8) : volumes et parts.
+      - name: n_price_bound
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: pct_price_bound
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: n_republication
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: pct_republication
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
 
   - name: mart_city_prices
     description: >
@@ -213,6 +240,45 @@ models:
           - within_range:
               arguments:
                 min_value: 0
+      - name: n_price_bound
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: pct_price_bound
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: n_republication
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: pct_republication
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: n_neighborhood_unrecognized
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: pct_neighborhood_unrecognized
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
 
   - name: mart_property_prices
     description: >
@@ -236,6 +302,44 @@ models:
           - within_range:
               arguments:
                 min_value: 0
+      - name: p10_rent_price
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: p90_rent_price
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: n_price_bound
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: pct_price_bound
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
+      - name: n_republication
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+      - name: pct_republication
+        tests:
+          - not_null
+          - within_range:
+              arguments:
+                min_value: 0
+                max_value: 100
 
   - name: mart_data_quality
     description: >

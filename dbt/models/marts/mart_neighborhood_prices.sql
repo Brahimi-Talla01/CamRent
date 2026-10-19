@@ -9,8 +9,9 @@
 -- « Explorer les prix » et par l'API `/market/neighborhoods`.
 -- Grain : une ligne par (ville, quartier, type, chambres).
 --
--- Aucune exclusion : républications et prix bornés restent comptés ; le
--- pourcentage de prix bornés (`pct_price_bound`) rend ce biais visible.
+-- Aucune exclusion : républications et prix bornés restent comptés ; leurs
+-- volumes et pourcentages (`n_republication`, `pct_price_bound`) rendent ces
+-- biais visibles (invariant 8).
 
 select
     city_key                                                    as city,
@@ -31,6 +32,10 @@ select
     sum(case when price_is_bound then 1 else 0 end)::bigint      as n_price_bound,
     round(
         100.0 * sum(case when price_is_bound then 1 else 0 end) / count(*)
-    )::float                                                     as pct_price_bound
+    )::float                                                     as pct_price_bound,
+    sum(case when is_republication then 1 else 0 end)::bigint     as n_republication,
+    round(
+        100.0 * sum(case when is_republication then 1 else 0 end) / count(*)
+    )::float                                                     as pct_republication
 from {{ ref('fct_rent_observations') }}
 group by city_key, neighborhood, neighborhood_recognized, property_type_key, bedrooms

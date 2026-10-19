@@ -181,37 +181,37 @@ d'atterrissage `pipelines/db.py` reste dans `landing`, créé hors dbt.
 
 | Attribut | Valeur |
 |---|---|
-| Description | Statistiques de marché par (ville, quartier, type, chambres) : N, moyenne, médiane, p10, p90, min, max, part de prix bornés. **La médiane n'est pas publiée sous N < 30** (var `min_publish_n`, décision Phase 3) mais N reste visible. |
+| Description | Statistiques de marché par (ville, quartier, type, chambres) : N, moyenne, médiane, p10, p90, min, max, volumes et parts de prix bornés et de republications. **La médiane n'est pas publiée sous N < 30** (var `min_publish_n`, décision Phase 3) mais N reste visible. |
 | Grain | (ville, quartier, type, chambres). |
 | Source | `fct_rent_observations`. |
 | Fréquence | Rejouée à chaque `dbt build`. |
 | Owner | Data Engineering. |
 | Sensibilité | Public. |
-| Qualité | not_null N/moyenne ; invariant de publication des médianes contrôlé par le test singulier `assert_median_published_only_at_or_above_threshold` (var `min_publish_n`) ; bornes `within_range` : N ≥ 1, moyenne ≥ 0, médiane ≥ 0. |
+| Qualité | not_null N/moyenne/compteurs ; invariant de publication des médianes contrôlé par le test singulier `assert_median_published_only_at_or_above_threshold` (var `min_publish_n`) ; bornes `within_range` : N ≥ 1, moyenne ≥ 0, médiane ≥ 0, parts entre 0 et 100. |
 
 ### marts.mart_city_prices
 
 | Attribut | Valeur |
 |---|---|
-| Description | Statistiques de marché par ville (grain ville) : mêmes conventions (N toujours, p10/p90, part de prix bornés visibles). |
+| Description | Statistiques de marché par ville (grain ville) : mêmes conventions (N toujours, p10/p90, volumes et parts de prix bornés, de republications et de quartiers non reconnus). |
 | Grain | Ville. |
 | Source | `fct_rent_observations`. |
 | Fréquence | Rejouée à chaque `dbt build`. |
 | Owner | Data Engineering. |
 | Sensibilité | Public. |
-| Qualité | unique `city` + accepted_values ; not_null `median_rent_price` (au-dessus de 2 811 / 181 observations, toujours publiée au MVP) ; bornes `within_range` : N ≥ 1, médiane ≥ 0. |
+| Qualité | unique `city` + accepted_values ; not_null `median_rent_price` (au-dessus de 2 811 / 181 observations, toujours publiée au MVP) et des compteurs de qualité ; bornes `within_range` : N ≥ 1, médiane ≥ 0, parts entre 0 et 100. |
 
 ### marts.mart_property_prices
 
 | Attribut | Valeur |
 |---|---|
-| Description | Statistiques de marché par (type de logement, ville). N toujours présent. |
+| Description | Statistiques de marché par (type de logement, ville) : N, moyenne, médiane, p10/p90, min/max, prix bornés et republications. Même forme que les deux autres marts de marché pour que l'API expose un contrat unique. |
 | Grain | (type, ville). |
 | Source | `fct_rent_observations`. |
 | Fréquence | Rejouée à chaque `dbt build`. |
 | Owner | Data Engineering. |
 | Sensibilité | Public. |
-| Qualité | not_null type/ville/N/médiane ; bornes `within_range` : N ≥ 1, médiane ≥ 0. |
+| Qualité | not_null type/ville/N/médiane/p10/p90/compteurs ; bornes `within_range` : N ≥ 1, prix ≥ 0, parts entre 0 et 100. |
 
 ### marts.mart_data_quality
 

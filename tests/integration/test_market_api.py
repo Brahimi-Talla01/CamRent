@@ -183,19 +183,26 @@ def test_price_groups_match_the_mart_and_its_threshold(
     assert group["quality"]["n_republication"] == row["n_republication"]
 
 
-def test_published_medians_match_the_mart(engine, schema: str, client: TestClient) -> None:
+def test_medians_match_the_mart_whether_published_or_not(
+    engine, schema: str, client: TestClient
+) -> None:
+    """La médiane de l'API est **exactement** celle du mart, publiée ou nulle.
+
+    Le jeu synthétique de la CI est trop petit pour dépasser le seuil sur un
+    groupe ; les plus gros groupes du jeu réel le dépassent. Le même test couvre
+    donc les deux cas selon l'environnement, sans valeur figée.
+    """
     rows = _rows(
         engine,
         f"""
         select city, neighborhood, property_type, bedrooms, n_observations,
                median_rent_price
         from {schema}.mart_neighborhood_prices
-        where median_rent_price is not null
         order by n_observations desc
-        limit 3
+        limit 5
         """,
     )
-    assert rows, "le mart doit publier au moins une médiane au MVP"
+    assert rows, "le mart de quartiers ne doit pas être vide"
     for row in rows:
         body = _get(
             client,
@@ -208,7 +215,9 @@ def test_published_medians_match_the_mart(engine, schema: str, client: TestClien
         group = body["groups"][0]
         assert group["stats"]["n_observations"] == row["n_observations"]
         assert group["stats"]["median_rent_price"] == row["median_rent_price"]
-        assert group["stats"]["median_published"] is True
+        assert group["stats"]["median_published"] is (
+            row["median_rent_price"] is not None
+        )
 
 
 def test_every_returned_median_respects_the_threshold(

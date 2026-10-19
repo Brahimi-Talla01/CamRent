@@ -35,7 +35,13 @@ tables analytiques (Gold) à partir du Silver, prêtes pour l'analyse, l'API
    relations faits → dims complètes (ville, type, date, plus la paire
    ville/quartier par test singulier) ; invariant de publication des médianes
    gardé par `dbt/tests/assert_median_published_only_at_or_above_threshold.sql`.
-7. **Qualité et provenance en base (lot B, 2026-10-16)** : la quarantaine et les
+7. **Qualité de marché exposée (2026-10-19, préparation du ticket #53)** : les trois
+   marts de prix portent désormais le volume **et** la part des prix bornés et des
+   republications (`n_price_bound` / `pct_price_bound`, `n_republication` /
+   `pct_republication`) ; `mart_city_prices` ajoute les quartiers non reconnus, et
+   `mart_property_prices` reçoit p10/p90 pour un contrat d'API homogène. Aucune
+   ligne n'est exclue : ces colonnes quantifient les biais au lieu de les masquer.
+8. **Qualité et provenance en base (lot B, 2026-10-16)** : la quarantaine et les
    métadonnées de collecte sont chargées dans `landing`, puis exposées par
    `mart_data_quality` (motifs de rejet agrégés par source) et
    `mart_ingestion_lots` (lots, version de connecteur, empreinte de contenu,

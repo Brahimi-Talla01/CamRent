@@ -9,23 +9,12 @@ finalise le MVP d'abord »).
 
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field
 
 from ..domain import vocabulary
-
-# Un quartier est une chaîne libre côté annonce : on retire les espaces superflus et
-# on refuse une valeur vide, sans transformer le libellé (la reconnaissance du
-# quartier est vérifiée par le service d'estimation, ticket #51).
-Neighborhood = Annotated[
-    str,
-    StringConstraints(
-        strip_whitespace=True,
-        min_length=1,
-        max_length=vocabulary.NEIGHBORHOOD_MAX_LENGTH,
-    ),
-]
+from .common import Neighborhood
 
 ROOMS_DESCRIPTION = (
     f"Nombre entier entre {vocabulary.ROOMS_MIN} et {vocabulary.ROOMS_MAX} "

@@ -1,15 +1,16 @@
-# Phase 8 — API publique : socle (08a.1), prédiction (08a.2), provenance et serving durci (08a.3)
+# Phase 8 — API publique : socle (08a.1), prédiction (08a.2), provenance et serving durci (08a.3), marché (08a.4)
 
 Objectif (spec : `context/feature-specs/08-api.md`) : exposer le modèle et les données de
 marché via une API backend claire, versionnée et reproductible.
 
 La phase 8 est livrée en **deux temps** (plan §10, lot 4) : **08a API publique** puis
-**08b API interne**. Ce document couvre les trois premiers incréments du 08a — le
+**08b API interne**. Ce document couvre les quatre premiers incréments du 08a — le
 **socle** (ticket #50 : structure `backend/`, schémas stricts, erreurs au format unique,
 route de version), **l'endpoint de prédiction** (ticket #51 : `POST
-/api/v1/predictions`, modèle épinglé, fourchette, `model_version`) et la **provenance
+/api/v1/predictions`, modèle épinglé, fourchette, `model_version`), la **provenance
 verrouillée** (ticket #52 : pin cohérent avec le mart vivant, vérification de l'alias au
-chargement). Les endpoints de marché (#53) et de comparaison (#54) suivent.
+chargement) et les **endpoints de marché** (ticket #53 : villes, quartiers, prix, avec
+nombre d'observations obligatoire et seuil de publication). La comparaison (#54) suit.
 
 ## Livrables du socle (#50)
 
@@ -188,10 +189,96 @@ Deux points de conception :
   le chemin sont journalisés, jamais le message ni la charge utile, qui peuvent contenir une
   donnée sensible (AGENTS.md §9). Un test le vérifie avec un message d'exception piégé.
 
+## Contrat de marché (08a.4, ticket #53)
+
+```
+GET /api/v1/market/cities
+GET /api/v1/market/neighborhoods?city=Douala[&property_type=apartment][&bedrooms=2]
+GET /api/v1/market/prices[?city=Douala][&neighborhood=Makepe][&property_type=apartment][&bedrooms=2][&period=2026-10]
+```
+
+Les trois routes lisent **exclusivement** les marts dbt — aucune statistique n'est
+recalculée dans la route ni dans le service :
+
+| Filtres demandés | Mart lu | Grain de la réponse |
+|---|---|---|
+| aucun, ou `city` seul | `mart_city_prices` | ville |
+| `property_type` seul (avec `city` facultative) | `mart_property_prices` | type × ville |
+| `neighborhood` et/ou `bedrooms` | `mart_neighborhood_prices` | ville × quartier × type × chambres |
+
+Chaque groupe retourné porte **ses propres dimensions** et son propre `n_observations`.
+On ne mélange jamais deux grains dans une même statistique : `neighborhood: null`
+signifie « statistique de ville », pas « quartier inconnu ».
+
+### Forme de la réponse (`/market/prices`)
+
+```json
+{
+  "currency": "XAF",
+  "min_publish_n": 30,
+  "observed_period": {"start": "2026-10-09", "end": "2026-10-09"},
+  "n_observations": 632,
+  "groups": [
+    {
+      "city": "Douala",
+      "neighborhood": "Makepe",
+      "neighborhood_recognized": true,
+      "property_type": "apartment",
+      "bedrooms": 2,
+      "stats": {
+        "n_observations": 632,
+        "mean_rent_price": 98498,
+        "median_rent_price": 90000,
+        "median_published": true,
+        "p10_rent_price": 70000,
+        "p90_rent_price": 150000,
+        "min_rent_price": 11000,
+        "max_rent_price": 750000
+      },
+      "quality": {
+        "n_price_bound": 621, "pct_price_bound": 98.0,
+        "n_republication": 586, "pct_republication": 93.0,
+        "n_neighborhood_unrecognized": null,
+        "pct_neighborhood_unrecognized": null
+      }
+    }
+  ]
+}
+```
+
+Points de conception :
+
+- **N obligatoire par construction** : `n_observations` n'a pas de valeur par défaut dans
+  `MarketStatsResponse` ; un test vérifie qu'on ne peut pas construire la réponse sans.
+- **Seuil appliqué deux fois** : dbt met la médiane à `null` sous `min_publish_n` ; le
+  service réapplique le seuil (défense en profondeur) et expose `median_published`. Une
+  médiane sous 30 observations ne peut donc pas sortir, même si un mart était mal
+  construit.
+- **Synthèse quartier sans médiane** : `/market/neighborhoods` agrège des effectifs et des
+  moyennes pondérées (exactes), mais **pas** les médianes ni les centiles — agréger des
+  médianes de sous-groupes ne donne pas la médiane du quartier. Le détail par
+  (type, chambres), avec le seuil, reste dans `/market/prices`.
+- **Période honnête** : les marts n'ont pas de dimension temporelle et les observations
+  tiennent dans un seul mois. `period=YYYY-MM` est accepté pour ce mois ; tout autre mois
+  renvoie **200 avec `n_observations: 0` et `groups: []`** (résultat vide explicite). Si les
+  données venaient à couvrir plusieurs mois, le filtre est **refusé en 400** plutôt que de
+  servir des statistiques toutes périodes sous une étiquette mensuelle.
+- **Filtres invalides** : ville ou type hors vocabulaire, chambres hors 0–10, mois mal
+  formé → **422** ; `neighborhood` sans `city` → **400** (un nom de quartier n'est pas
+  unique entre villes).
+
+### Qualité exposée, jamais masquée
+
+Les marts portent désormais le volume **et** la part des prix bornés, des republications
+et (au niveau ville) des quartiers non reconnus. L'API les rend tels quels : un prix
+borné reste compté, mais le client sait quelle part de la statistique il représente.
+Aucune ligne n'est exclue pour embellir la moyenne.
+
 ## Configuration
 
 Aucun secret ni chemin en dur : `backend/infrastructure/config.py` lit `DATABASE_URL` **à
-l'appel**. Conséquences voulues et testées :
+l'appel**, ainsi que `DBT_MARTS_SCHEMA` (défaut `analytics_marts`) pour suivre le schéma
+construit par dbt. Conséquences voulues et testées :
 
 - l'application démarre et répond sur `/health` **sans base joignable** ;
 - une configuration absente produit une erreur explicite (`MissingConfigurationError`) qui
@@ -237,11 +324,26 @@ Vérifications de l'incrément de provenance (#52, 2026-10-18) :
 | test d'intégration en CI | `tests/unit/test_serving_registry.py` : registre MLflow **SQLite** + artefacts temporaires → modèle et intervalle chargés, alias périmé refusé, artefact absent signalé |
 | fixture isolé | le serving est testé **sans** registre, sans base et sans artefact du poste (fixture `tests/unit/serving_fixture.py`) — exécuté en CI |
 
+Vérifications de l'incrément de marché (#53, 2026-10-19) :
+
+| Contrôle | Résultat |
+|---|---|
+| `ruff check .` | 0 erreur |
+| `pytest -q` (suite complète, base réelle chargée) | **279 réussis** — 256 avant l'incrément, +16 tests unitaires, +7 tests d'intégration |
+| `dbt build` local | **169/169** (16 modèles, 153 tests) — 137/137 avant l'enrichissement des marts |
+| endpoints réels (`TestClient`, marts du 2026-10-19) | `/market/cities` → Douala N=2 811 (méd. 100 000), Yaoundé N=181 (méd. 150 000) ; `/market/neighborhoods?city=Douala` → 88 quartiers, N total 2 811 ; `/market/prices?city=Douala&neighborhood=Makepe&property_type=apartment&bedrooms=2` → **N=632**, médiane 90 000, `median_published=true` |
+| seuil sur données réelles | groupe sous 30 observations → `median_rent_price: null`, `median_published: false`, N et moyenne présents |
+| comparaison aux marts | `tests/integration/test_market_api.py` relit les marts en SQL et compare **toutes** les valeurs (N, moyenne, médiane, p10/p90, min/max, qualité, période) |
+| filtre sans résultat | quartier inexistant → **200** `n_observations: 0`, `groups: []` ; mois hors période → **200** vide explicite ; `neighborhood` sans `city` → **400** |
+| filtre invalide | ville hors vocabulaire, `bedrooms=11`, `period=2026-13` → **422** `validation_error` |
+| contrat OpenAPI | `paths` contient `/api/v1/market/cities`, `/neighborhoods`, `/prices` |
+
 ## Lancer et rejouer
 
 ```bash
-uvicorn backend.api.app:app --reload          # développement
-python -m pytest tests/unit/test_api_*.py -q   # tests de l'incrément
+uvicorn backend.api.app:app --reload                    # développement
+python -m pytest tests/unit/test_api_*.py -q            # contrat HTTP (dépôt simulé)
+python -m pytest tests/integration/test_market_api.py -q  # comparaison aux marts (DATABASE_URL requise)
 ```
 
 ## Invariants respectés
@@ -254,8 +356,18 @@ python -m pytest tests/unit/test_api_*.py -q   # tests de l'incrément
 
 ## Limites connues
 
-- **Endpoints restants** : marché (#53) et comparaison (#54) restent à livrer ; l'API
-  n'affiche encore aucune donnée de marché.
+- **Endpoint restant** : la comparaison (#54) reste à livrer. Les endpoints de marché
+  (#53) sont servis sur les marts réels.
+- **Marché — période unique** : les marts de marché n'ont pas de dimension temporelle et
+  les observations tiennent dans un seul mois (2026-10-09). `period` est accepté pour ce
+  mois et renvoie un vide explicite pour un autre ; il sera refusé en 400 si une collecte
+  étalée dans le temps rend les marts multi-mois sans que le filtre soit implémenté.
+- **Marché — pas de médiane par quartier agrégée** : `/market/neighborhoods` expose
+  effectifs, moyenne pondérée et bornes, pas de médiane ni de centiles (agrégation non
+  mathématiquement valide). Le détail médian reste par groupe dans `/market/prices`.
+- **Marché — base requise** : contrairement à `/health` et à la prédiction, les routes de
+  marché exigent `DATABASE_URL` et les marts construits ; une base absente produit une
+  erreur interne générique, sans fuite de configuration.
 - **Provenance du modèle** : le pin décrit le mart vivant (`rent-model-v4`,
   `mart_ml_dataset@d3c11c225f48`), l'alias `champion` est vérifié au chargement et le
   préflight `python -m ml.src pin --check-dataset` compare le pin au mart avant
@@ -276,6 +388,6 @@ python -m pytest tests/unit/test_api_*.py -q   # tests de l'incrément
 
 | Ticket | Contenu |
 |---|---|
-| #53 | Endpoints de marché (villes, quartiers, prix) — nombre d'observations obligatoire |
+| #54 | Endpoint de comparaison — réutilise la prédiction et le marché, sans second calcul |
 | #54 | Endpoint de comparaison |
 | #60 | Tests d'intégration API → base → modèle et parcours de bout en bout |

@@ -21,6 +21,12 @@ API_PREFIX: Final[str] = "/api/v1"
 # celui déjà utilisé par `pipelines` et `ml` : une seule variable pour une seule base.
 DATABASE_URL_ENV: Final[str] = "DATABASE_URL"
 
+# Schéma des marts de marché. Même variable que `ml/src/config.py`, pour que l'API
+# et l'entraînement lisent le même emplacement. La CI construit les marts dans un
+# schéma dédié (`analytics_ci_marts`) et la surcharge dans ses étapes de données.
+MARTS_SCHEMA_ENV: Final[str] = "DBT_MARTS_SCHEMA"
+DEFAULT_MARTS_SCHEMA: Final[str] = "analytics_marts"
+
 
 class MissingConfigurationError(RuntimeError):
     """Configuration requise absente de l'environnement."""
@@ -41,3 +47,9 @@ def database_url() -> str:
             "(voir `.env.example`)."
         )
     return value
+
+
+def market_marts_schema() -> str:
+    """Schéma PostgreSQL des marts de marché (défaut : ``analytics_marts``)."""
+    value = os.environ.get(MARTS_SCHEMA_ENV, "").strip()
+    return value or DEFAULT_MARTS_SCHEMA

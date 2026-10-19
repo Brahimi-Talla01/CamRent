@@ -69,7 +69,10 @@ jobs:
         run: ruff check .
 
       - name: Tests unitaires (pytest)
-        run: pytest -q
+        # Les tests d'intégration exigent une base construite par dbt : ils sont
+        # exécutés après `dbt build`, dans une étape dédiée. Les exclure ici évite
+        # un « skip » silencieux qui laisserait croire qu'ils ont tourné.
+        run: pytest -q --ignore=tests/integration
 
       # --- Tests de données (lot C) ------------------------------------
       # Aucune donnée réelle n'est versionnable : `data/raw/`, `data/processed/`
@@ -96,6 +99,16 @@ jobs:
           # dev / prod du lot C) est vérifié à chaque exécution.
           DBT_SCHEMA_DEV: analytics_ci
         run: cd dbt && dbt build --no-version-check
+
+      - name: Tests d'intégration API marché (marts réels)
+        # Compare les endpoints de marché aux marts construits juste au-dessus,
+        # dans le schéma dédié à la CI. Aucun chiffre n'est figé : le test relit
+        # les marts et vérifie que l'API renvoie les mêmes valeurs, N et seuil
+        # compris (ticket #53).
+        env:
+          DATABASE_URL: postgresql://camrent:change-me@localhost:5432/camrent_ci
+          DBT_MARTS_SCHEMA: analytics_ci_marts
+        run: pytest -q tests/integration/test_market_api.py
 
       # Étapes restant à activer aux phases suivantes (Plan Technique §53) :
       # - contrôles Pandera sur le Silver → option du Plan §26, non retenue au MVP

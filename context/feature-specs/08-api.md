@@ -70,6 +70,22 @@ reproductible.
    Paramètres : `city`, `neighborhood`, `property_type`, `bedrooms`, `period`.
    Toute statistique renvoyée inclut le **nombre d'observations**.
 
+   Précisions de contrat (ticket #53, 2026-10-19) :
+
+   - `/market/neighborhoods` exige `city` ; sans elle, la requête est refusée (422).
+   - `/market/prices` lit le mart dont le grain couvre exactement les filtres : ville
+     seule → `mart_city_prices` ; type seul → `mart_property_prices` ; quartier ou
+     chambres → `mart_neighborhood_prices`. Aucun mélange de grains dans une statistique.
+   - La médiane n'est publiée qu'à partir du seuil `min_publish_n` (défaut 30) ; la réponse
+     porte `median_published`. `/market/neighborhoods` ne publie **pas** de médiane
+     agrégée (agréger des médianes n'est pas valide) : elle expose effectifs, moyenne
+     pondérée, minimum, maximum et drapeaux de qualité.
+   - `period` suit les marts : tant qu'ils couvrent un seul mois, ce mois est accepté et
+     tout autre renvoie une réponse vide explicite (`n_observations: 0`). Si les marts
+     couvrent plusieurs mois sans dimension temporelle, le filtre est refusé (400).
+   - Filtre sans résultat : liste vide explicite, jamais une statistique inventée.
+     `neighborhood` sans `city` → 400 (un quartier n'est pas unique entre villes).
+
 4. **API de comparaison** :
 
    ```

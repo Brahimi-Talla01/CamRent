@@ -1,16 +1,18 @@
-# Phase 8 — API publique : socle (08a.1), prédiction (08a.2), provenance et serving durci (08a.3), marché (08a.4)
+# Phase 8 — API publique : socle (08a.1), prédiction (08a.2), provenance et serving durci (08a.3), marché (08a.4), comparaison (08a.5)
 
 Objectif (spec : `context/feature-specs/08-api.md`) : exposer le modèle et les données de
 marché via une API backend claire, versionnée et reproductible.
 
 La phase 8 est livrée en **deux temps** (plan §10, lot 4) : **08a API publique** puis
-**08b API interne**. Ce document couvre les quatre premiers incréments du 08a — le
+**08b API interne**. Ce document couvre les **cinq incréments du 08a** — le
 **socle** (ticket #50 : structure `backend/`, schémas stricts, erreurs au format unique,
 route de version), **l'endpoint de prédiction** (ticket #51 : `POST
 /api/v1/predictions`, modèle épinglé, fourchette, `model_version`), la **provenance
 verrouillée** (ticket #52 : pin cohérent avec le mart vivant, vérification de l'alias au
-chargement) et les **endpoints de marché** (ticket #53 : villes, quartiers, prix, avec
-nombre d'observations obligatoire et seuil de publication). La comparaison (#54) suit.
+chargement), les **endpoints de marché** (ticket #53 : villes, quartiers, prix, avec
+nombre d'observations obligatoire et seuil de publication) et la **comparaison**
+(ticket #54 : prix demandé, estimation, référence locale et écarts signés, sans second
+calcul). L'API publique est ainsi complète ; le 08b (API interne) reste à ouvrir.
 
 ## Livrables du socle (#50)
 
@@ -274,6 +276,85 @@ et (au niveau ville) des quartiers non reconnus. L'API les rend tels quels : un 
 borné reste compté, mais le client sait quelle part de la statistique il représente.
 Aucune ligne n'est exclue pour embellir la moyenne.
 
+## Contrat de comparaison (08a.5, ticket #54)
+
+```
+POST /api/v1/comparisons
+```
+
+Entrée : un à dix logements, chacun avec les cinq champs du modèle et le prix demandé.
+
+```json
+{
+  "listings": [
+    {
+      "city": "Douala", "neighborhood": "Makepe", "property_type": "apartment",
+      "bedrooms": 2, "bathrooms": 2, "asking_rent": 150000
+    }
+  ]
+}
+```
+
+Réponse — **réelle**, servie par le modèle épinglé et les marts du 2026-10-19 :
+
+```json
+{
+  "currency": "XAF",
+  "min_publish_n": 30,
+  "model_version": "rent-model-v4",
+  "comparisons": [
+    {
+      "listing": {
+        "city": "Douala", "neighborhood": "Makepe", "property_type": "apartment",
+        "bedrooms": 2, "bathrooms": 2, "asking_rent": 150000
+      },
+      "estimate": {"estimated_rent": 109990, "lower_bound": 80000, "upper_bound": 150002},
+      "market": {
+        "city": "Douala", "neighborhood": "Makepe", "property_type": "apartment",
+        "bedrooms": 2,
+        "n_observations": 632,
+        "mean_rent_price": 98498,
+        "median_rent_price": 90000,
+        "median_published": true,
+        "quality": {
+          "n_price_bound": 621, "pct_price_bound": 98.0,
+          "n_republication": 586, "pct_republication": 93.0,
+          "n_neighborhood_unrecognized": null,
+          "pct_neighborhood_unrecognized": null
+        }
+      },
+      "gaps": {
+        "to_estimate": {"absolute": 40010, "relative_pct": 36.4},
+        "to_market_mean": {"absolute": 51502, "relative_pct": 52.3},
+        "to_market_median": {"absolute": 60000, "relative_pct": 66.7}
+      }
+    }
+  ]
+}
+```
+
+Points de conception :
+
+- **Réutilisation stricte, aucune divergence** : le service de comparaison appelle
+  `EstimationService.estimate` (08a.2) et `MarketService.prices` (08a.4). Il ne calcule
+  que l'écart signé `asking_rent - référence` et son pourcentage. Les tests comparent
+  valeur par valeur la comparaison aux deux endpoints directs.
+- **Groupe de comparaison explicite** : c'est le grain du mart
+  `(ville, quartier, type, chambres)`. Les salles de bain servent à l'estimation mais
+  **pas** à la référence locale, que les marts n'exposent pas à ce grain ; le groupe est
+  donc répété dans la réponse pour que le client sache à quoi il compare.
+- **Écart signé** : `absolute = asking_rent - référence` ; positif = prix demandé au-dessus
+  de la référence. `relative_pct` est arrondi à une décimale. Aucun score de confiance, aucune
+  note, aucune recommandation.
+- **Seuil respecté jusqu'au bout** : sous 30 observations, `median_rent_price` est `null`,
+  `median_published` vaut `false` et `gaps.to_market_median` est `null` — jamais un écart
+  calculé sur une médiane non publiée.
+- **Groupe absent, réponse explicite** : si le mart n'a aucun groupe pour la combinaison,
+  `market` vaut `null` et les écarts marché sont nuls ; l'estimation reste fournie. Aucune
+  référence plus large n'est inventée en silence.
+- **Erreurs** : quartier inconnu du modèle → **404** (comme `/predictions`) ; liste vide,
+  plus de dix logements, prix demandé < 1, champ non collecté ou chambres hors 0–10 → **422**.
+
 ## Configuration
 
 Aucun secret ni chemin en dur : `backend/infrastructure/config.py` lit `DATABASE_URL` **à
@@ -338,12 +419,29 @@ Vérifications de l'incrément de marché (#53, 2026-10-19) :
 | filtre invalide | ville hors vocabulaire, `bedrooms=11`, `period=2026-13` → **422** `validation_error` |
 | contrat OpenAPI | `paths` contient `/api/v1/market/cities`, `/neighborhoods`, `/prices` |
 
+Vérifications de l'incrément de comparaison (#54, 2026-10-19) :
+
+| Contrôle | Résultat |
+|---|---|
+| `ruff check .` | 0 erreur |
+| `pytest -q --ignore=tests/integration` | **286 réussis** (272 avant l'incrément, +14 tests de comparaison) |
+| `pytest -q tests/integration` | **11 réussis** (7 marché + 4 comparaison) |
+| `dbt build` | **169/169** inchangé — aucun changement de données dans cet incrément |
+| comparaison réelle | Makepe × appartement × 2 ch. à 150 000 FCFA → estimation **109 990**, marché **N=632** (moyenne 98 498, médiane 90 000), écarts **+40 010 (+36,4 %)**, **+51 502 (+52,3 %)**, **+60 000 (+66,7 %)** |
+| seuil sur données réelles | Bonapriso × appartement × 1 ch. → marché **N=25**, médiane `null`, `median_published=false`, `to_market_median=null`, moyenne et écart moyen présents |
+| comparaison multiple | deux logements (Makepe N=632 publiée, Bastos N=9 non publiée) → deux entrées dans l'ordre, un seul `model_version` (`rent-model-v4`) |
+| cohérence avec les endpoints | `tests/integration/test_comparison_api.py` compare chaque estimation et chaque valeur de marché aux réponses directes de `/predictions` et `/market/prices` |
+| groupe de marché absent | combinaison sans ligne de mart → **200** avec `market: null`, écarts marché nuls, estimation fournie |
+| quartier inconnu | **404** `not_found`, aucune estimation dans la réponse |
+| requête invalide | liste vide, 11 logements, `asking_rent=0`, `area_m2`, `bathrooms=11`, ville hors vocabulaire → **422** |
+| CI synthétique | jeu de 360 lignes chargé dans une base séparée → `dbt build` 169/169 puis **11 tests d'intégration réussis** |
+
 ## Lancer et rejouer
 
 ```bash
-uvicorn backend.api.app:app --reload                    # développement
-python -m pytest tests/unit/test_api_*.py -q            # contrat HTTP (dépôt simulé)
-python -m pytest tests/integration/test_market_api.py -q  # comparaison aux marts (DATABASE_URL requise)
+uvicorn backend.api.app:app --reload              # développement
+python -m pytest tests/unit/test_api_*.py -q      # contrat HTTP (dépôts simulés)
+python -m pytest tests/integration -q             # comparaison aux marts (DATABASE_URL requise)
 ```
 
 ## Invariants respectés
@@ -356,8 +454,13 @@ python -m pytest tests/integration/test_market_api.py -q  # comparaison aux mart
 
 ## Limites connues
 
-- **Endpoint restant** : la comparaison (#54) reste à livrer. Les endpoints de marché
-  (#53) sont servis sur les marts réels.
+- **API publique complète** : les cinq incréments du 08a sont livrés. L'API interne du
+  back-office (08b, ticket #61) reste une **application distincte**, non ouverte ici.
+- **Comparaison — pas de salles de bain dans la référence** : le groupe local est le grain
+  du mart `(ville, quartier, type, chambres)`. Les salles de bain influencent l'estimation
+  mais pas le groupe, faute de mart à ce grain ; la réponse l'explicite en répétant le groupe.
+- **Comparaison — groupe absent** : `market: null` plutôt qu'une référence élargie. C'est
+  volontaire : une moyenne de quartier ou de ville ne décrit pas le même logement.
 - **Marché — période unique** : les marts de marché n'ont pas de dimension temporelle et
   les observations tiennent dans un seul mois (2026-10-09). `period` est accepté pour ce
   mois et renvoie un vide explicite pour un autre ; il sera refusé en 400 si une collecte
@@ -365,9 +468,9 @@ python -m pytest tests/integration/test_market_api.py -q  # comparaison aux mart
 - **Marché — pas de médiane par quartier agrégée** : `/market/neighborhoods` expose
   effectifs, moyenne pondérée et bornes, pas de médiane ni de centiles (agrégation non
   mathématiquement valide). Le détail médian reste par groupe dans `/market/prices`.
-- **Marché — base requise** : contrairement à `/health` et à la prédiction, les routes de
-  marché exigent `DATABASE_URL` et les marts construits ; une base absente produit une
-  erreur interne générique, sans fuite de configuration.
+- **Marché et comparaison — base requise** : contrairement à `/health` et à la prédiction
+  seule, ces routes exigent `DATABASE_URL` et les marts construits ; une base absente
+  produit une erreur interne générique, sans fuite de configuration.
 - **Provenance du modèle** : le pin décrit le mart vivant (`rent-model-v4`,
   `mart_ml_dataset@d3c11c225f48`), l'alias `champion` est vérifié au chargement et le
   préflight `python -m ml.src pin --check-dataset` compare le pin au mart avant
@@ -388,6 +491,6 @@ python -m pytest tests/integration/test_market_api.py -q  # comparaison aux mart
 
 | Ticket | Contenu |
 |---|---|
-| #54 | Endpoint de comparaison — réutilise la prédiction et le marché, sans second calcul |
-| #54 | Endpoint de comparaison |
+| #55 à #58 | Interface publique d'estimation (09a.1 à 09a.4) — consommation de cette API |
+| #61 | Socle de l'API interne du back-office (08b.1), application distincte |
 | #60 | Tests d'intégration API → base → modèle et parcours de bout en bout |

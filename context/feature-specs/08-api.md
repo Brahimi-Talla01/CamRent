@@ -94,6 +94,32 @@ reproductible.
 
    Compare : prix demandé, prix estimé, prix moyen local, caractéristiques.
 
+   Précisions de contrat (ticket #54, 2026-10-19) :
+
+   - Entrée : `{"listings": [...]}` avec **1 à 10** logements, chacun portant les
+     cinq champs du modèle (`city`, `neighborhood`, `property_type`, `bedrooms`,
+     `bathrooms`) et `asking_rent` (loyer mensuel demandé, FCFA). Les champs non
+     collectés restent refusés (même schéma strict que `/predictions`).
+   - Sortie, par logement : l'estimation et sa fourchette, la référence locale
+     (groupe, `n_observations`, moyenne, médiane et `median_published`, qualité),
+     puis les écarts **signés** `asking_rent - référence` (`absolute` et
+     `relative_pct`). Un écart positif signifie « au-dessus de la référence ».
+   - **Groupe de comparaison = grain du mart** `(ville, quartier, type, chambres)`.
+     Les salles de bain entrent dans l'estimation mais pas dans la référence
+     locale : les marts n'exposent pas ce grain. Le groupe est explicite dans la
+     réponse.
+   - **Réutilisation stricte** : la comparaison appelle le service d'estimation
+     de 08a.2 et le service de marché de 08a.4 ; elle ne recalcule ni estimation
+     ni statistique. Les valeurs doivent être identiques aux endpoints directs.
+   - Médiane sous le seuil : `median_rent_price: null`, `median_published: false`,
+     `gaps.to_market_median: null` — jamais un écart calculé sur une médiane non
+     publiée. Groupe de marché absent : `market: null` et écarts marché nuls, sans
+     élargir silencieusement la référence ; l'estimation reste fournie.
+   - Quartier inconnu du modèle → **404** comme `/predictions` ; requête invalide
+     (liste vide, plus de 10 logements, prix demandé < 1) → **422**.
+   - Aucun score de confiance, aucune note, aucune recommandation : l'API informe
+     sur l'écart, elle ne certifie pas une valeur officielle.
+
 5. Charger le modèle **épinglé** (version servie consignée dans `ml/models/champion.json`,
    Phase 7) côté serving ; exposer le `model_version` dans chaque réponse.
 

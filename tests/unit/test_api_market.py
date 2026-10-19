@@ -12,145 +12,15 @@ from datetime import date
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from market_fixture import FakeMarketRepository
 from pydantic import ValidationError
 
 from backend.api.app import create_app
 from backend.api.routes.market import get_market_service
-from backend.domain.market import (
-    CityMarket,
-    MarketQuality,
-    MarketStats,
-    NeighborhoodMarket,
-    NeighborhoodStats,
-    ObservationPeriod,
-    PriceGroup,
-)
+from backend.domain.market import ObservationPeriod
 from backend.infrastructure import config
 from backend.schemas.market import MarketStatsResponse
 from backend.services.market import MarketService
-
-PERIOD = ObservationPeriod(start=date(2026, 10, 1), end=date(2026, 10, 9))
-
-
-def _stats(
-    n_observations: int,
-    *,
-    mean: int = 100_000,
-    median: int | None = None,
-) -> MarketStats:
-    return MarketStats(
-        n_observations=n_observations,
-        mean_rent_price=mean,
-        median_rent_price=median,
-        p10_rent_price=50_000,
-        p90_rent_price=200_000,
-        min_rent_price=10_000,
-        max_rent_price=400_000,
-    )
-
-
-def _quality() -> MarketQuality:
-    return MarketQuality(
-        n_price_bound=12,
-        pct_price_bound=12.0,
-        n_republication=25,
-        pct_republication=25.0,
-        n_neighborhood_unrecognized=3,
-        pct_neighborhood_unrecognized=3.0,
-    )
-
-
-class FakeMarketRepository:
-    """Dépôt en mémoire : enregistre les filtres reçus et rend des objets connus."""
-
-    def __init__(
-        self,
-        *,
-        period: ObservationPeriod = PERIOD,
-        cities: list[CityMarket] | None = None,
-        neighborhoods: list[NeighborhoodMarket] | None = None,
-        prices: list[PriceGroup] | None = None,
-    ) -> None:
-        self.period = period
-        self.city_rows = cities if cities is not None else [
-            CityMarket("Douala", _stats(100, median=100_000), _quality()),
-            CityMarket("Yaoundé", _stats(10, median=150_000), _quality()),
-        ]
-        self.neighborhood_rows = neighborhoods if neighborhoods is not None else [
-            NeighborhoodMarket(
-                city="Douala",
-                neighborhood="Makepe",
-                neighborhood_recognized=True,
-                n_groups=2,
-                stats=NeighborhoodStats(
-                    n_observations=80,
-                    mean_rent_price=120_000,
-                    min_rent_price=20_000,
-                    max_rent_price=300_000,
-                ),
-                quality=_quality(),
-            )
-        ]
-        self.price_rows = prices if prices is not None else [
-            PriceGroup(
-                city="Douala",
-                neighborhood="Makepe",
-                neighborhood_recognized=True,
-                property_type="apartment",
-                bedrooms=2,
-                stats=_stats(80, median=120_000),
-                quality=_quality(),
-            ),
-            PriceGroup(
-                city="Douala",
-                neighborhood="Makepe",
-                neighborhood_recognized=True,
-                property_type="apartment",
-                bedrooms=1,
-                stats=_stats(5, median=40_000),
-                quality=_quality(),
-            ),
-        ]
-        self.calls: list[tuple[str, dict[str, object]]] = []
-
-    def observation_period(self) -> ObservationPeriod:
-        return self.period
-
-    def cities(self) -> list[CityMarket]:
-        return self.city_rows
-
-    def neighborhoods(
-        self,
-        *,
-        city: str,
-        property_type: str | None = None,
-        bedrooms: int | None = None,
-    ) -> list[NeighborhoodMarket]:
-        self.calls.append(
-            ("neighborhoods", {"city": city, "property_type": property_type, "bedrooms": bedrooms})
-        )
-        return self.neighborhood_rows
-
-    def prices(
-        self,
-        *,
-        city: str | None = None,
-        neighborhood: str | None = None,
-        property_type: str | None = None,
-        bedrooms: int | None = None,
-    ) -> list[PriceGroup]:
-        self.calls.append(
-            (
-                "prices",
-                {
-                    "city": city,
-                    "neighborhood": neighborhood,
-                    "property_type": property_type,
-                    "bedrooms": bedrooms,
-                },
-            )
-        )
-        return self.price_rows
 
 
 @pytest.fixture

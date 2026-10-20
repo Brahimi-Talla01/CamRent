@@ -54,8 +54,9 @@ Fichiers de contexte clés :
 └── .env.example        variables d'environnement attendues
 ```
 
-Cette structure suit le Plan Technique §55. Les dossiers `backend/`, `frontend/`, `dbt/` restent
-vides jusqu'à leur phase respective.
+Cette structure suit le Plan Technique §55. `backend/` (API publique FastAPI + API interne Django),
+`frontend/` (Phase 9a) et `dbt/` (Phase 4) sont désormais peuplés ; `infrastructure/` reste réservé
+aux phases de déploiement.
 
 ## Démarrage (Phase 0-1)
 
@@ -68,6 +69,9 @@ Installation des dépendances Python selon l'outillage retenu (pip / uv), par ex
 
 ```bash
 pip install -e ".[dev,transform,ml,api,internal]"   # outillage, dbt, ML, API publique et interne
+
+# Frontend public (Phase 9a)
+cd frontend && npm install && cp .env.example .env.local && npm run dev
 ```
 
 ## Roadmap

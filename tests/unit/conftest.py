@@ -34,6 +34,24 @@ def mlflow_sqlite_uri(tmp_path_factory) -> str:
 
 
 @pytest.fixture
+def internal_admin(db) -> object:
+    """Compte interne `admin` de l'API interne (base de test, Phase 8b)."""
+    from backend.internal.accounts.models import InternalUser
+    from tests.unit.internal_fixture import ADMIN_EMAIL, ADMIN_PASSWORD
+
+    return InternalUser.objects.create_user(email=ADMIN_EMAIL, password=ADMIN_PASSWORD)
+
+
+@pytest.fixture
+def admin_headers(internal_admin) -> dict[str, str]:
+    """En-tête `Authorization` d'un compte admin, via un jeton réellement émis."""
+    from backend.internal.accounts.tokens import issue_token
+    from tests.unit.internal_fixture import auth_headers
+
+    return auth_headers(issue_token(internal_admin).token)
+
+
+@pytest.fixture
 def ml_frame() -> pd.DataFrame:
     """6 observations : 2 villes, 3 quartiers, 2 types, prix connus.
 

@@ -21,8 +21,7 @@
 | Orchestration       | Python/cron au début, puis Airflow  | Planification, dépendances, retries, logs                            |
 | Data quality        | dbt tests + Pandera ou Great Expectations | Validations Bronze/Silver, dérive, fraîcheur                   |
 | ML                  | scikit-learn, puis XGBoost/LightGBM | Régression supervisée de `rent_price`                                |
-| Experiment tracking | MLflow                              | Expériences, hyperparamètres, métriques, modèles, versions           |
-| API                 | FastAPI                             | Serving des prédictions et données de marché                         |
+| Experiment tracking | MLflow                              | Expériences, hyperparamètres, métriques, modèles, versions           || API                 | FastAPI (public), Django (interne)  | Serving public : prédictions et marché ; back-office : comptes, rôles, audit |
 | Frontend            | Next.js + TypeScript                | Application utilisateur                                              |
 | Conteneurisation    | Docker                              | Environnement local standardisé                                      |
 | CI/CD               | GitHub Actions / GitLab CI          | Lint → tests → data tests → build → deploy                           |
@@ -127,6 +126,10 @@ Le mode d'exécution du MVP est **batch** (ex. tous les jours). Le streaming n'e
 - **API de prédiction** : `POST /api/v1/predictions` → `estimated_rent`, `lower_bound`, `upper_bound`, `currency`, `model_version`.
 - **API de marché** : `GET /api/v1/market/cities`, `/market/neighborhoods`, `/market/prices`.
 - **API de comparaison** : `POST /api/v1/comparisons`.
+- **API interne** (08b, application **distincte**, Django, préfixe `/internal/api/v1`) :
+  authentification par jeton, rôle `admin` au départ, autorisation par action, journal
+  d'audit consultable. Elle ne monte aucune route publique et l'API publique ne monte
+  aucune de ses routes.
 - Le backend ne fait pas de travail ML long : il appelle le modèle et/ou les tables Gold.
 
 ## Gouvernance du registre de modèles

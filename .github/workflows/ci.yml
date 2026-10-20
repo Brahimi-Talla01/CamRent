@@ -62,8 +62,9 @@ jobs:
           # (dbt-postgres), le ML (scikit-learn, lightgbm, mlflow-skinny, alembic,
           # skops) et l'API publique (fastapi, uvicorn) — mêmes dépendances
           # qu'auparavant, déclarées une seule fois. L'extra `api` est requis depuis
-          # le ticket #50 : sans lui, les tests de l'API seraient ignorés en CI.
-          pip install -e '.[dev,transform,ml,api]'
+          # le ticket #50 (API publique FastAPI) et `internal` depuis le ticket #61
+          # (API interne Django) : sans eux, les tests correspondants échoueraient.
+          pip install -e '.[dev,transform,ml,api,internal]'
 
       - name: Lint (ruff)
         run: ruff check .
@@ -73,6 +74,19 @@ jobs:
         # exécutés après `dbt build`, dans une étape dédiée. Les exclure ici évite
         # un « skip » silencieux qui laisserait croire qu'ils ont tourné.
         run: pytest -q --ignore=tests/integration
+
+      # --- API interne (ticket #61) ------------------------------------
+      # Les tests unitaires de l'API interne tournent sur SQLite en mémoire ; cette
+      # étape vérifie en plus que les migrations s'appliquent sur **PostgreSQL**
+      # (le moteur réel) et qu'aucune modification de modèle n'attend sa migration.
+      - name: Migrations de l'API interne (PostgreSQL)
+        env:
+          # Clé de CI éphémère : aucun secret réel dans le dépôt (AGENTS.md §9).
+          INTERNAL_SECRET_KEY: ci-only-secret-key-not-a-real-secret-0123456789abcdef
+          DATABASE_URL: postgresql://camrent:change-me@localhost:5432/camrent_ci
+        run: |
+          python manage.py makemigrations --check --dry-run
+          python manage.py migrate --noinput
 
       # --- Tests de données (lot C) ------------------------------------
       # Aucune donnée réelle n'est versionnable : `data/raw/`, `data/processed/`
@@ -114,6 +128,7 @@ jobs:
       # - contrôles Pandera sur le Silver → option du Plan §26, non retenue au MVP
       #   (les tests dbt couvrent les marts) ;
       # - integration tests  → ticket #60 (API → base → modèle, parcours de bout en
-      #   bout) ; le socle de l'API (#50) est couvert par les tests unitaires ;
+      #   bout) ; le socle de l'API (#50) et l'API interne (#61) sont couverts par
+      #   les tests unitaires et l'étape de migrations ci-dessus ;
       # - build frontend (Next.js) → Phase 9 ;
       # - déploiement → Phase 12 (voir `cd.yml`).

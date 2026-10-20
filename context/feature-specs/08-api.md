@@ -125,10 +125,35 @@ reproductible.
 
 6. Valider les entrées avec des schémas stricts ; retourner des erreurs prévisibles (400 / 404 / 422).
 
+7. **API interne (08b)** — application **distincte** de l'API publique, servie séparément :
+
+   ```
+   GET  /internal/api/v1/health
+   POST /internal/api/v1/auth/login
+   POST /internal/api/v1/auth/logout
+   GET  /internal/api/v1/me
+   POST /internal/api/v1/users
+   GET  /internal/api/v1/audit
+   ```
+
+   Précisions de contrat (ticket #61, 2026-10-20) :
+
+   - Authentification par jeton `Authorization: Bearer`, sans session ni cookie (donc
+     sans CSRF) ; le jeton n'est affiché qu'une fois et seule son empreinte est stockée.
+   - Un seul rôle ouvert : `admin` (spec 13 §Scope Limits). Chaque route déclare l'action
+     qu'elle protège ; le contrôle échoue fermé (action inconnue ou rôle non déclaré → 403).
+   - Refus : **401** `unauthenticated` (jeton absent, invalide, expiré ou révoqué) et
+     **403** `forbidden` (rôle insuffisant). Comme pour le public, un compte inconnu et un
+     mot de passe faux donnent la même réponse.
+   - Toute action sensible est journalisée avec auteur, action, cible, date et résultat ;
+     le journal est consultable. Aucun mot de passe ni jeton n'y est écrit.
+   - Les deux applications ne montent aucune route l'une de l'autre (ticket #61).
+
 ## Dependencies
 
-- FastAPI (+ uvicorn) pour rester dans l'écosystème Python.
-- PostgreSQL pour les données de marché.
+- FastAPI (+ uvicorn) pour l'API **publique** ; Django pour l'API **interne** (08b),
+  application séparée.
+- PostgreSQL pour les données de marché et pour les comptes/audit internes.
 - Modèle enregistré (Phase 7).
 
 ## Scope Limits

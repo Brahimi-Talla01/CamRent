@@ -38,7 +38,7 @@ Fichiers de contexte clés :
 │   ├── src/            features & entraînement (Phases 5-6)
 │   ├── models/         artefacts de modèles (non versionnés)
 │   └── evaluation/     métriques par segment
-├── backend/            API FastAPI (Phase 8)
+├── backend/            API publique FastAPI + API interne Django (Phase 8)
 ├── frontend/           application Next.js + TypeScript (Phase 9)
 ├── tests/
 │   ├── unit/           parsing, normalisation, features, services
@@ -67,8 +67,7 @@ docker compose up -d postgres  # base locale
 Installation des dépendances Python selon l'outillage retenu (pip / uv), par exemple :
 
 ```bash
-pip install pandas pyarrow SQLAlchemy "psycopg[binary]"
-pip install -e ".[ml,api,quality,dev]"   # quand le backend de build sera ajouté
+pip install -e ".[dev,transform,ml,api,internal]"   # outillage, dbt, ML, API publique et interne
 ```
 
 ## Roadmap

@@ -10,7 +10,7 @@ const FLOW_STEPS = [
       "Ville, quartier, type de bien, chambres et salles de bain : cinq informations " +
       "seulement, celles que le modèle sait réellement exploiter.",
     href: "/estimer",
-    status: "Formulaire livré avec le ticket 09a.2",
+    status: "Formulaire livré",
   },
   {
     step: "Étape 2",
@@ -72,11 +72,12 @@ export default function HomePage() {
           ))}
         </div>
         <div className="notice notice--warning" role="status">
-          <h2>Le socle est en place, les écrans arrivent</h2>
+          <h2>Le parcours part des données réelles</h2>
           <p>
-            Cette version livre la structure, le thème et le client d’API. Les écrans
-            d’estimation, d’exploration et de comparaison seront livrés par les tickets 09a.2 à
-            09a.4 : d’ici là, aucune estimation n’est proposée et aucun chiffre n’est affiché.
+            L&apos;estimation, l&apos;exploration et la comparaison affichent uniquement des
+            chiffres issus de la plateforme de données : prix demandés observés dans les
+            annonces, médianes publiées au-delà du seuil de publication, et nombre
+            d&apos;observations à chaque fois.
           </p>
         </div>
       </section>

@@ -27,6 +27,12 @@ DATABASE_URL_ENV: Final[str] = "DATABASE_URL"
 MARTS_SCHEMA_ENV: Final[str] = "DBT_MARTS_SCHEMA"
 DEFAULT_MARTS_SCHEMA: Final[str] = "analytics_marts"
 
+# CORS : le navigateur du frontend public (Phase 9a) appelle cette API depuis
+# une autre origine en développement (3000 → 8000). Opt-in explicite, origines
+# séparées par des virgules ; sans déclaration, **aucune** en-tête CORS n'est
+# émise — en production, la même origine traverse un proxy inverse.
+CORS_ORIGINS_ENV: Final[str] = "CORS_ALLOWED_ORIGINS"
+
 
 class MissingConfigurationError(RuntimeError):
     """Configuration requise absente de l'environnement."""
@@ -53,3 +59,17 @@ def market_marts_schema() -> str:
     """Schéma PostgreSQL des marts de marché (défaut : ``analytics_marts``)."""
     value = os.environ.get(MARTS_SCHEMA_ENV, "").strip()
     return value or DEFAULT_MARTS_SCHEMA
+
+
+def cors_allowed_origins() -> list[str]:
+    """Origines autorisées à appeler l'API depuis un navigateur.
+
+    Liste vide par défaut : un déploiement classique sert l'API et le frontend
+    sous la même origine, et un canvas CORS ouvert sans besoin serait une
+    permission gratuite. Chaque origine distinga est sa fois protocole et hôte
+    (`http://localhost:3000,https://camrent.example`).
+    """
+    raw = os.environ.get(CORS_ORIGINS_ENV, "").strip()
+    if not raw:
+        return []
+    return sorted({origin.strip() for origin in raw.split(",") if origin.strip()})

@@ -5,8 +5,10 @@ compréhensibles par des non-techniciens. La phase 9 est livrée en **deux temps
 estimation publique** puis **09b administration** (plan §10, lot 5) — et 09a se découpe en
 quatre tickets (#55 à #58).
 
-Ce document couvre le **premier incrément, 09a.1 (ticket #55)** : figer le thème, poser le
-socle Next.js, la mise en page et le client d'API. Les écrans métier arrivent ensuite.
+Ce document couvre les **deux premiers incréments** : **09a.1 (ticket #55)** — figer le
+thème, poser le socle Next.js, la mise en page et le client d'API — et
+**09a.2 (ticket #56)** — l'écran d'estimation, branché sur l'API réelle.
+L'exploration et la comparaison arrivent ensuite (09a.3, 09a.4).
 
 ## Thème figé (écrit avant le code)
 
@@ -44,14 +46,34 @@ de revue.
 
 ```
 /           accueil : parcours, ce que l'outil fait / ne fait pas, statut des écrans
-/estimer    écran 09a.2 — explicitement « à venir », aucune donnée simulée
-/explorer   écran 09a.3 — idem
+/estimer    écran 09a.2 (livré) : formulaire 5 champs → estimation + fourchette + contexte
+/explorer   écran 09a.3 — explicitement « à venir », aucune donnée simulée
 /comparer   écran 09a.4 — idem
 *           404 au thème, avec retour à l'accueil
 ```
 
-Un écran non livré **le dit** (« Écran à venir », ticket concerné) au lieu d'afficher un
-formulaire inerte ou un chiffre inventé : aucune capacité n'est simulée.
+### Écran d'estimation (09a.2, ticket #56)
+
+- **Cinq champs exactement** : ville (Douala / Yaoundé), quartier (liste des marts
+  via `GET /api/v1/market/neighborhoods?city=…`, saisie libre conservée), type
+  (`apartment`/`studio`/`room`/`house`), chambres et salles de bain (0–10).
+  La superficie, le mobilier ou le parking ne sont pas demandés : le modèle ne
+  les prend pas en compte (décision 6).
+- **Résultat** : loyer estimé, fourchette 5 % / 95 %, version du modèle épinglé
+  (`POST /api/v1/predictions`), contexte de marché du groupe
+  (`GET /api/v1/market/prices`) : N obligatoire, moyenne, médiane si et seulement
+  si elle est publiée (sinon « Non publiée (moins de <N_seuil> observations) »),
+  étendue p10–p90.
+- **Erreurs reprises comme des phrases** : quartier jamais observé → 404
+  expliqué (le modèle ne l'a jamais vu, vérifiez la liste) ; 422 affiché
+  champ par champ depuis le détail de l'enveloppe d'erreur ; réseau/délai :
+  message stable, aucune trace technique.
+- **CORS opt-in** : `CORS_ALLOWED_ORIGINS=http://localhost:3000` sur l'API
+  (middleware ajouté côté backend, défaut strict : aucune en-tête CORS sans
+  déclaration, testé par 2 tests dédiés).
+- Un écran non livré **le dit** (« Écran à venir », ticket concerné) au lieu
+  d'afficher un formulaire inerte ou un chiffre inventé : aucune capacité n'est
+  simulée.
 
 ## Client de l'API publique
 
@@ -71,14 +93,24 @@ formulaire inerte ou un chiffre inventé : aucune capacité n'est simulée.
 |---|---|
 | `npm run lint` | 0 erreur (ESLint 9, règles Next.js + TypeScript) |
 | `npm run typecheck` | 0 erreur (`tsc --noEmit`, strict) |
-| `npm test` | **11 tests réussis** (configuration, URL, en-têtes, réseau, délai, 422, 500 non JSON, 200 illisible) |
+| `npm test` | **28 tests réussis** (client API, formatage FCFA, helpers marché, erreurs d'estimation) |
 | `npm run build` | **succès** — routes prérendues : `/`, `/estimer`, `/explorer`, `/comparer`, `/_not-found` |
-| serveur réel (`next start`, port 3000) | `/` 200 (16,7 Ko), `/estimer` 200, `/explorer` 200, `/comparer` 200, `/inconnu` **404** |
+| serveur réel (`next start`, port 3000) | `/` 200, `/estimer` 200, `/explorer` 200, `/comparer` 200, `/inconnu` **404** |
+### Vérifications bout en bout de 09a.2 (2026-10-20)
+
+| Contrôle | Résultat |
+|---|---|
+| API réelle (`uvicorn` + CORS opt-in) | preflight admis 200 pour `http://localhost:3000`, 400 par défaut pour toute autre origine |
+| estimation réelle | `Makepe × apartment × 2ch × 1 sdb` → **78 299 FCFA** (bornes 60 000–100 000, `rent-model-v4`) ; groupe de marché **N = 632**, moyenne 98 498, médiane 90 000 publiée |
+| hydration réelle (Chrome headless, 12 s de budget virtuel) | le hint du quartier passe à « **88 quartiers observés dans les données pour Douala** » : le fetch client part bien du navigateur vers les marts, le composant hydrate |
+| `/estimer` SSR | formulaire servi dans le HTML initial (aucun contenu client-only) ; `NEXT_PUBLIC_API_BASE_URL` inlineé dans le bundle |
+| captures responsive | 1280×1600 et 390×1600 de `/estimer` |
+| suites locales | frontend lint 0, typecheck 0, 28 tests ; Python ruff 0, 359 unitaires |
 | thème centralisé | CSS servi (7,0 Ko) : tokens `--color-primary`, `--color-bg`, `--text-4xl`, media queries 1024 px, `prefers-reduced-motion` présents |
 | accessibilité de base | lien d'évitement, `nav aria-label`, `aria-hidden` sur les décorations, cibles de 44 px, contrastes documentés |
 | rendu responsive | captures Chrome headless **1280×1600** et **390×1600** de l'accueil (vérification visuelle des breakpoints) |
 | aucune donnée simulée | `/estimer` affiche « Écran à venir » et le ticket 09a.2 ; aucun chiffre dans les pages |
-| CI | job **Frontend** ajouté (Node 22, `npm ci`, lint, typecheck, tests, build) |
+| CI | job **Frontend** ajouté (Node 22, `npm ci`, lint, typecheck, tests, build) — exécuté et vert depuis la PR #88 |
 
 Incident de build corrigé à la cause : un premier `next build` s'est terminé en
 `Bus error` après une installation `npm` interrompue (deux installations concurrentes avaient
@@ -88,8 +120,8 @@ réinstallés proprement ; build vert, sans contournement.
 ## Lancer et rejouer
 
 ```bash
-# API publique (depuis la racine)
-uvicorn backend.api.app:app --port 8000
+# API publique (depuis la racine) — l'origine du frontend doit y être déclarée
+CORS_ALLOWED_ORIGINS=http://localhost:3000 uvicorn backend.api.app:app --port 8000
 
 # Frontend
 cd frontend
@@ -101,17 +133,20 @@ npm run lint && npm run typecheck && npm test && npm run build
 
 ## Limites connues
 
-- **Écrans métier non livrés** : `/estimer`, `/explorer` et `/comparer` annoncent leur ticket
-  (09a.2 à 09a.4). Le client API est prêt mais aucun écran ne l'appelle encore.
+- **Écran d'estimation non piloté par un test automatisé** : la soumission complète du
+  formulaire est vérifiée par les endpoints réels (`curl`), l'hydration réelle en Chrome
+  headless (hint des quartiers mis à jour après fetch) et les tests backend, sans moteur de
+  test de composants (aucune dépendance installée pour cela à ce stade).
+- **Écrans 09a.3 / 09a.4 non livrés** : `/explorer` et `/comparer` annoncent leur ticket.
 - **Variables `NEXT_PUBLIC_*` inlinées au build** : changer l'URL de l'API impose de
   reconstruire le frontend.
 - **Thème clair uniquement** : le mode sombre demanderait une palette complète et n'est pas au
   MVP.
 - **Pas de bibliothèque de composants ni de graphiques** : ajoutées seulement si un écran
   l'exige ; le style des graphiques est déjà figé pour 09a.3.
-- **Tests frontend volontairement limités** : le client API est testé unitairement ; les écrans
-  sont vérifiés par le build, le rendu réel et des captures, sans moteur de test de composants
-  (dépendance non justifiée à ce stade).
+- **Tests frontend volontairement limités** : la logique pure (client API, formatage,
+  marché, erreurs) est testée unitairement ; les écrans sont vérifiés par le build, le
+  rendu réel et des captures, sans moteur de test de composants.
 - **Pas de connexion à l'API depuis le socle** : les captures et le rendu ont été faits sans
   API démarrée, ce qui est l'état attendu tant qu'aucun écran ne consomme de données.
 
@@ -119,7 +154,6 @@ npm run lint && npm run typecheck && npm test && npm run build
 
 | Ticket | Contenu |
 |---|---|
-| #56 | 09a.2 — écran estimation → résultat (formulaire 5 champs, fourchette, `N`, limites) |
 | #57 | 09a.3 — écran explorer le marché (quartiers, types, seuil de publication) |
 | #58 | 09a.4 — écran comparer (prix demandé, estimation, référence locale, écarts signés) |
 | #68/#69 | 09b — interface d'administration, après les fondations 13.1 à 13.5 |

@@ -22,7 +22,8 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Current Goal
 
-- **Phase 9a — frontend public** (plan §10, lot 5) : **#55 terminé et mergé** (PR #88, squash `9dfef2e`, issue #55 close) ; écrans métier **#56 à #58** ensuite. Le socle 08b.1 reste la base des modules back-office 13.x, après 09.
+- **Phase 9a — frontend public** (plan §10, lot 5) : **#55 terminé et mergé** (PR #88, squash `9dfef2e`, issue #55 close) ; **09a.2 (#56) implémenté et vérifié localement** (écran d'estimation branché sur l'API réelle) ; **#57** (exploration) et **#58** (comparaison) ensuite. Le socle 08b.1 reste la base des modules back-office 13.x, après 09.
+- **CORS opt-in sur l'API publique (2026-10-20, avec le ticket #56)** : le navigateur du frontend refuse les appels cross-origin tant que l'origine n'est pas déclarée ; `CORS_ALLOWED_ORIGINS` (liste, virgules) ouvre explicitement, défaut fermé sans déclaration, couvert par 2 tests dédiés. La production même-origine n'a rien à déclarer.
 - **Lot D — Phase 8 en deux temps** (plan §10 « Lot 4 », tickets de module) : **08a API publique** — **#50 livré** (socle, schémas stricts, erreurs au format unique), **#51 livré** (prédiction servie depuis le modèle épinglé), **#52 livré** (provenance verrouillée, `rent-model-v4`), **#53 livré** (endpoints de marché, PR #82), **#54 implémenté et vérifié localement** (comparaison, branche `feat/08a.5-comparisons`, livraison à ouvrir) — puis **08b API interne** — **#61 livré et mergé** (08b.1 : authentification par jeton, rôle `admin`, autorisation par action, journal d'audit, application Django séparée — PR #86). Le payload reste strictement limité aux champs réellement collectés ; les invariants de données sont protégés en CI par le lot C.
 
 ## Completed
@@ -402,7 +403,7 @@ Mettre à jour ce fichier dès que la phase courante, la fonctionnalité active 
 
 ## Next Up
 
-- **Estimation** : #56 à #58 (09a.2 à 09a.4, écrans du parcours) après le socle 09a.1 (#55, implémenté et vérifié localement) ; puis #59 (11.4 observabilité du modèle), #60 (12.4 tests d'intégration et bout en bout) et #73 (12.6 vérification du retour arrière du modèle).
+- **Estimation** : #56 (09a.2, implémenté et vérifié localement) puis #57 à #58 (09a.3 à 09a.4, écrans du parcours) et la consignation de la fusion faite par la PR #89 ; puis #59 (11.4 observabilité du modèle), #60 (12.4 tests d'intégration et bout en bout) et #73 (12.6 vérification du retour arrière du modèle).
 - **Back-office** : #62 à #66 (13.1 sources, 13.2 datasets,
   13.3 qualité, 13.4 jobs, 13.5 registre), #67 (14.1 rapports et audit), #68/#69 (09b.1/09b.2
   interface d'administration — après les fondations 13), tous appuyés sur le socle 08b.1 (#61,

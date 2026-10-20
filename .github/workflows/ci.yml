@@ -130,5 +130,48 @@ jobs:
       # - integration tests  → ticket #60 (API → base → modèle, parcours de bout en
       #   bout) ; le socle de l'API (#50) et l'API interne (#61) sont couverts par
       #   les tests unitaires et l'étape de migrations ci-dessus ;
-      # - build frontend (Next.js) → Phase 9 ;
+      # - build frontend (Next.js) → livré : voir le job `frontend` ci-dessous ;
       # - déploiement → Phase 12 (voir `cd.yml`).
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    # Le frontend public (Phase 9a) a sa propre chaîne : lint, typage, tests
+    # unitaires du client API et build de production. Il ne dépend pas de
+    # PostgreSQL ni des marts : ces écrans-là viendront avec 09a.2 à 09a.4.
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install (lockfile)
+        # `npm ci` exige un `package-lock.json` versionné : les versions sont
+        # figées, une installation locale et la CI résolvent les mêmes paquets.
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Tests unitaires (client API)
+        run: npm test
+
+      - name: Build
+        env:
+          # Valeur de build **non secrète** : le client API est inliné au build.
+          # L'application ne contacte aucune API pendant la compilation.
+          NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
+        run: npm run build

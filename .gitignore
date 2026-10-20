@@ -69,3 +69,6 @@ inspire/
 Thumbs.db
 .idea/
 .vscode/
+
+# --- TypeScript incrémental (frontend) ---
+*.tsbuildinfo

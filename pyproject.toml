@@ -44,6 +44,12 @@ api = [
     "fastapi",
     "uvicorn[standard]",
 ]
+# Phase 8b : API **interne** du back-office (ticket #61). Django reste séparé de
+# l'API publique FastAPI : deux applications, deux contrôles d'accès, aucun
+# couplage. Django >= 6 est requis pour Python 3.12+ (dont 3.14, version locale).
+internal = [
+    "django>=6.0",
+]
 quality = [
     "pandera",
 ]
@@ -54,6 +60,9 @@ dev = [
     # Phase 8 : `fastapi.testclient.TestClient` s'appuie sur `httpx`. Dépendance de
     # test uniquement — le service lui-même n'en a pas besoin.
     "httpx",
+    # Phase 8b : base de test de Django (création/flush de la base de test,
+    # client HTTP, marqueur `django_db`) pour l'API interne.
+    "pytest-django",
 ]
 
 [tool.setuptools]
@@ -78,18 +87,32 @@ packages = [
     "backend.repositories",
     "backend.schemas",
     "backend.services",
+    # Phase 8b : API interne (Django), application distincte du public.
+    "backend.internal",
+    "backend.internal.accounts",
+    "backend.internal.accounts.management",
+    "backend.internal.accounts.management.commands",
+    "backend.internal.accounts.migrations",
+    "backend.internal.audit",
+    "backend.internal.audit.migrations",
 ]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
 # `inspire/` et `assets/` sont du matériel de référence, pas du code du projet.
-extend-exclude = ["inspire", "assets"]
+# Les migrations Django sont **générées** par `makemigrations` : les relinter
+# reviendrait à modifier du code généré (AGENTS.md §3).
+extend-exclude = ["inspire", "assets", "*/migrations/*"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# Phase 8b : l'API interne est une application Django. Les tests utilisent le
+# module de réglages **de test** (SQLite en mémoire, clé factice) : la suite reste
+# exécutable sans PostgreSQL, comme le reste des tests unitaires.
+DJANGO_SETTINGS_MODULE = "backend.internal.settings_test"
 # Permet `import ingestion` (pas de layout src/) quand pytest tourne depuis la racine.
 pythonpath = ["."]

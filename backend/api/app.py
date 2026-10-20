@@ -12,6 +12,7 @@ jamais une route de celle-ci (spec 08 §Scope Limits).
 from __future__ import annotations
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from ..infrastructure import config
 from .errors import register_error_handlers
@@ -29,6 +30,17 @@ def create_app() -> FastAPI:
             "Une estimation n'est jamais une valeur officielle du bien."
         ),
     )
+    # CORS opt-in (Phase 9a) : le navigateur du frontend refuse les appels
+    # cross-origin tant que l'origine du frontend n'est pas déclarée explicitement
+    # dans `CORS_ALLOWED_ORIGINS`. Sans déclaration, aucune en-tête CORS.
+    allowed_origins = config.cors_allowed_origins()
+    if allowed_origins:
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=allowed_origins,
+            allow_methods=["GET", "POST"],
+            allow_headers=["Accept", "Content-Type"],
+        )
     register_error_handlers(app)
     app.include_router(health.router, prefix=config.API_PREFIX, tags=["santé"])
     app.include_router(

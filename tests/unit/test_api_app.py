@@ -7,6 +7,7 @@ est exercé, pas une copie.
 
 from __future__ import annotations
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -108,3 +109,35 @@ def test_internal_failure_does_not_leak_technical_detail() -> None:
     assert response.json()["error"]["code"] == "internal_error"
     assert "change-me" not in response.text
     assert "RuntimeError" not in response.text
+
+
+def test_cors_is_closed_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Sans origine déclarée, aucune en-tête CORS : permission non gratuite."""
+    monkeypatch.delenv(config.CORS_ORIGINS_ENV, raising=False)
+
+    response = _client(create_app()).options(
+        f"{config.API_PREFIX}/health",
+        headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "GET"},
+    )
+
+    assert response.status_code == 405
+    assert "access-control-allow-origin" not in response.headers
+
+
+def test_cors_preflight_admits_only_declared_origins(monkeypatch: pytest.MonkeyPatch) -> None:
+    """L'écran d'estimation (3000) appelle l'API (8000) : CORS opt-in la couvre."""
+    monkeypatch.setenv(config.CORS_ORIGINS_ENV, "http://localhost:3000")
+    client = _client(create_app())
+
+    admitted = client.options(
+        f"{config.API_PREFIX}/health",
+        headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "POST"},
+    )
+    foreign = client.options(
+        f"{config.API_PREFIX}/health",
+        headers={"Origin": "http://sous-traitant.example", "Access-Control-Request-Method": "POST"},
+    )
+
+    assert admitted.status_code == 200
+    assert admitted.headers["access-control-allow-origin"] == "http://localhost:3000"
+    assert "access-control-allow-origin" not in foreign.headers

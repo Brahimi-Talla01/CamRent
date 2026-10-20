@@ -1,9 +1,10 @@
 # Frontend — CamRent (Phase 9a)
 
-Application publique Next.js + TypeScript. Ce dépôt contient le **socle** de la
-Phase 9a (ticket #55) : thème figé, mise en page, navigation du parcours et
-client de l'API publique. Les écrans métier arrivent avec les tickets 09a.2
-(formulaire), 09a.3 (exploration) et 09a.4 (comparaison).
+Application publique Next.js + TypeScript. La Phase 9a : thème figé, mise en
+page, navigation du parcours et client de l'API publique (ticket 09a.1),
+puis le **formulaire d'estimation** (ticket 09a.2) : cinq champs, fourchette
+calibrée et contexte de marché du quartier. L'exploration (09a.3) et la
+comparaison (09a.4) suivent.
 
 ## Démarrage
 
@@ -14,12 +15,17 @@ npm install
 npm run dev                     # http://localhost:3000
 ```
 
-L'API publique doit tourner à côté :
+L'API publique doit tourner à côté, **avec l'origine du frontend déclarée en CORS**
+(le navigateur refuse les appels cross-origin sinon) :
 
 ```bash
 # depuis la racine du dépôt
-uvicorn backend.api.app:app --port 8000
+CORS_ALLOWED_ORIGINS=http://localhost:3000 uvicorn backend.api.app:app --port 8000
 ```
+
+Sans cette variable, l'API répond but les écrans du navigateur restent sans donnée
+(la liste des quartiers indique alors qu'elle est indisponible) — aucune erreur
+technique n'est exposée.
 
 ## Commandes
 
@@ -50,13 +56,17 @@ qui nomme la variable. Aucune URL d'API n'est écrite en dur.
 frontend/
 ├── app/                 App Router : layout, accueil, étapes du parcours, 404
 │   ├── globals.css      thème figé (tokens) — source unique des couleurs
-│   ├── estimer/         écran 09a.2 (en attente, explicite)
-│   ├── explorer/        écran 09a.3 (en attente, explicite)
-│   └── comparer/        écran 09a.4 (en attente, explicite)
-├── components/          en-tête, pied de page, carte d'étape, écran d'attente
+│   ├── estimer/         écran 09a.2 : formulaire + résultat + contexte de marché
+│   ├── explorer/        écran 09a.3 (à venir, explicite)
+│   └── comparer/        écran 09a.4 (à venir, explicite)
+├── components/          en-tête, pied de page, carte d'étape, formulaire d'estimation
 ├── lib/
 │   ├── api.ts           client HTTP de l'API publique (erreurs typées)
-│   └── api.test.ts      tests du client (Vitest)
+│   ├── api-types.ts     types du contrat 08a consommés à l'écran
+│   ├── estimation-errors.ts  traduction des échecs d'estimation en phrases du produit
+│   ├── format.ts        montants FCFA (`Intl.NumberFormat("fr-FR")`)
+│   ├── market.ts        URLs, options de quartier, groupe de marché
+│   └── *.test.ts        tests Vitest des modules purs
 └── vitest.config.mts
 ```
 
@@ -69,12 +79,17 @@ espacement écrit en dur dans un composant est un défaut de revue.
 
 ## Limites assumées
 
-- Les écrans d'estimation, d'exploration et de comparaison affichent
-  explicitement qu'ils arrivent avec les tickets 09a.2 à 09a.4 : aucune donnée
-  n'est simulée, aucun chiffre n'est inventé.
+- L'écran d'estimation n'est **pas** une valeur officielle : le montant est
+  toujours accompagné de la fourchette et du rappel « prix demandés ».
+- Un quartier absent des données est refusé en 404, jamais « estimé à l'aveugle ».
+- Le formulaire liste les quartiers réellement suivis (optionnel : la saisie
+  libre reste possible) ; un groupe de marché sans observation est annoncé
+  comme tel, jamais remplacé par un chiffre approchant.
+- `/explorer` et `/comparer` annoncent encore leurs tickets (09a.3 / 09a.4).
 - Thème clair uniquement (le mode sombre est hors MVP).
 - Aucune bibliothèque de composants ni de graphiques : les tokens et le CSS
   suffisent à ce stade ; une dépendance sera ajoutée seulement si un écran
   l'exige réellement.
-- Les tests unitaires couvrent le client API (config, réseau, délai, erreurs
-  HTTP) ; les écrans sont vérifiés par `next build` et à la main.
+- La logique pure (erreurs, formatage, marché) est testée par Vitest ; le
+  formulaire lui-même est vérifié par `next build`, le rendu réel et une
+  session Chrome headless contre l'API réel (uvicorn + CORS).

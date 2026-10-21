@@ -29,6 +29,23 @@ export type PredictionRequest = {
   bathrooms: number;
 };
 
+/** Biais connus d'un groupe de marché — `backend/schemas/market.py`. */
+export type MarketQuality = {
+  n_price_bound: number;
+  pct_price_bound: number;
+  n_republication: number;
+  pct_republication: number;
+  /** Renseigné au niveau ville uniquement, `null` ailleurs. */
+  n_neighborhood_unrecognized: number | null;
+  pct_neighborhood_unrecognized: number | null;
+};
+
+/** Fenêtre réellement couverte par les données de marché. */
+export type ObservedPeriod = {
+  start: string | null;
+  end: string | null;
+};
+
 /** Statistiques d'un groupe de marché — `backend/schemas/market.py`. */
 export type MarketStats = {
   n_observations: number;
@@ -49,12 +66,14 @@ export type PriceGroup = {
   property_type: string | null;
   bedrooms: number | null;
   stats: MarketStats;
+  quality: MarketQuality;
 };
 
 /** Réponse de `GET /api/v1/market/prices` (ticket #53). */
 export type PricesResponse = {
   currency: "XAF";
   min_publish_n: number;
+  observed_period: ObservedPeriod;
   n_observations: number;
   groups: PriceGroup[];
 };
@@ -63,20 +82,39 @@ export type PricesResponse = {
 export type NeighborhoodMarket = {
   neighborhood: string;
   neighborhood_recognized: boolean;
+  /** Nombre de groupes (type × chambres) composant la synthèse. */
+  n_groups: number;
   stats: {
     n_observations: number;
     mean_rent_price: number;
     min_rent_price: number;
     max_rent_price: number;
   };
+  quality: MarketQuality;
 };
 
 /** Réponse de `GET /api/v1/market/neighborhoods`, restreinte aux champs lus. */
 export type NeighborhoodsResponse = {
   currency: "XAF";
   min_publish_n: number;
+  observed_period: ObservedPeriod;
   city: string;
   n_observations: number;
   n_neighborhoods: number;
   neighborhoods: NeighborhoodMarket[];
+};
+
+/** Ville de `GET /api/v1/market/cities` (ticket #53). */
+export type CityMarket = {
+  city: string;
+  stats: MarketStats;
+  quality: MarketQuality;
+};
+
+/** Réponse de `GET /api/v1/market/cities` (ticket #53). */
+export type CitiesResponse = {
+  currency: "XAF";
+  min_publish_n: number;
+  observed_period: ObservedPeriod;
+  cities: CityMarket[];
 };

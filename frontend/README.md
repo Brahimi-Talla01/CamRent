@@ -1,10 +1,11 @@
 # Frontend — CamRent (Phase 9a)
 
 Application publique Next.js + TypeScript. La Phase 9a : thème figé, mise en
-page, navigation du parcours et client de l'API publique (ticket 09a.1),
-puis le **formulaire d'estimation** (ticket 09a.2) : cinq champs, fourchette
-calibrée et contexte de marché du quartier. L'exploration (09a.3) et la
-comparaison (09a.4) suivent.
+page, navigation du parcours et client de l'API publique (ticket 09a.1), le
+**formulaire d'estimation** (ticket 09a.2) — cinq champs, fourchette calibrée et
+contexte de marché du quartier — puis l'**exploration du marché** (ticket
+09a.3) : filtres ville / quartier / type / chambres, N toujours affiché, médiane
+seulement au-delà du seuil de publication. La comparaison (09a.4) suit.
 
 ## Démarrage
 
@@ -57,18 +58,41 @@ frontend/
 ├── app/                 App Router : layout, accueil, étapes du parcours, 404
 │   ├── globals.css      thème figé (tokens) — source unique des couleurs
 │   ├── estimer/         écran 09a.2 : formulaire + résultat + contexte de marché
-│   ├── explorer/        écran 09a.3 (à venir, explicite)
+│   ├── explorer/        écran 09a.3 : filtres et statistiques par quartier
 │   └── comparer/        écran 09a.4 (à venir, explicite)
-├── components/          en-tête, pied de page, carte d'étape, formulaire d'estimation
+├── components/          en-tête, pied de page, carte d'étape, formulaire
+│                        d'estimation, explorateur de marché
 ├── lib/
 │   ├── api.ts           client HTTP de l'API publique (erreurs typées)
 │   ├── api-types.ts     types du contrat 08a consommés à l'écran
 │   ├── estimation-errors.ts  traduction des échecs d'estimation en phrases du produit
-│   ├── format.ts        montants FCFA (`Intl.NumberFormat("fr-FR")`)
+│   ├── explorer.ts      filtres d'URL, requêtes de marché, règle de publication
+│   ├── format.ts        montants, effectifs, parts et dates (`Intl.*`, `fr-FR`)
 │   ├── market.ts        URLs, options de quartier, groupe de marché
+│   ├── vocabulary.ts    villes, types de bien, bornes de pièces (source unique)
 │   └── *.test.ts        tests Vitest des modules purs
 └── vitest.config.mts
 ```
+
+## Écran d'exploration (`/explorer`)
+
+- **Filtres dans l'URL** (`?city=…&neighborhood=…&property_type=…&bedrooms=…`) :
+  un état est partageable et vérifiable ; une valeur forgée (ville inconnue,
+  type inconnu, chambres hors 0–10) est ignorée, jamais relayée à l'API.
+- **Deux lectures, deux grains** : `/market/neighborhoods` pour la synthèse par
+  quartier (N, moyenne, minimum–maximum, nombre de groupes) ; `/market/prices`
+  pour le détail quartier × type × chambres (N, moyenne, médiane si publiée,
+  p10–p90). Aucune agrégation de médianes n'est faite côté écran.
+- **Médiane** : affichée uniquement si `median_published` **et** N ≥ seuil ; le
+  seuil est revérifié côté écran (`lib/explorer.ts`). Sinon « Non publiée
+  (< 30 obs.) », avec l'explication sous la table.
+- **Limites de la donnée** : prix « à partir de », republications, quartiers non
+  reconnus — volume et part pour chaque biais non nul, période observée et seuil
+  de publication, au niveau de la ville.
+- **Filtre sans résultat** : phrase explicite et bouton de retrait des filtres,
+  aucun chiffre approché depuis un autre quartier ou une autre ville.
+- **Échec de l'API** : la table est vidée, un message stable s'affiche ; aucune
+  valeur périmée ne reste visible.
 
 ## Thème
 
@@ -85,7 +109,7 @@ espacement écrit en dur dans un composant est un défaut de revue.
 - Le formulaire liste les quartiers réellement suivis (optionnel : la saisie
   libre reste possible) ; un groupe de marché sans observation est annoncé
   comme tel, jamais remplacé par un chiffre approchant.
-- `/explorer` et `/comparer` annoncent encore leurs tickets (09a.3 / 09a.4).
+- `/comparer` annonce encore son ticket (09a.4).
 - Thème clair uniquement (le mode sombre est hors MVP).
 - Aucune bibliothèque de composants ni de graphiques : les tokens et le CSS
   suffisent à ce stade ; une dépendance sera ajoutée seulement si un écran

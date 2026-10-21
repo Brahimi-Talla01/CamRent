@@ -35,18 +35,7 @@ import {
   neighborhoodOptions,
   neighborhoodsUrl,
 } from "@/lib/market";
-
-const CITIES = ["Douala", "Yaoundé"] as const;
-
-const PROPERTY_TYPES = [
-  { value: "apartment", label: "Appartement" },
-  { value: "studio", label: "Studio" },
-  { value: "room", label: "Chambre (room)" },
-  { value: "house", label: "Maison" },
-] as const;
-
-const ROOMS_MIN = 0;
-const ROOMS_MAX = 10;
+import { CITIES, PROPERTY_TYPES, ROOMS_MAX, ROOMS_MIN } from "@/lib/vocabulary";
 
 /** Analyse un nombre de pièces saisi ; l'erreur est portée par `errors`. */
 function parseRooms(

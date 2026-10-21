@@ -146,10 +146,17 @@ Exploration :
 
 ```
 Prix moyen     155 000 FCFA
-Prix médian    150 000 FCFA
+Prix médian    150 000 FCFA            (seulement si N ≥ seuil de publication)
+Prix médian    Non publiée (< 30 obs.)  (sous le seuil : N et moyenne restent affichés)
 Fourchette     130 000 – 190 000 FCFA
 Observations   248
 ```
+
+Dans un tableau d'exploration, la colonne **Observations** est toujours présente ;
+une médiane absente est écrite en `--color-accent-ink`, jamais remplacée par une
+moyenne ou une valeur approchée. Les biais de la donnée (prix bornés,
+republications, quartiers non reconnus) sont listés avec leur volume et leur part,
+au niveau agrégé de la ville, sans dépasser quelques lignes.
 
 Séparateur de milliers : espace insécable étroite (`Intl.NumberFormat("fr-FR")`) ; unité
 `FCFA / mois` écrite en `--text-sm` `--color-ink-muted` à côté du montant.

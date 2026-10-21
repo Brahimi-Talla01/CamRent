@@ -5,10 +5,10 @@ compréhensibles par des non-techniciens. La phase 9 est livrée en **deux temps
 estimation publique** puis **09b administration** (plan §10, lot 5) — et 09a se découpe en
 quatre tickets (#55 à #58).
 
-Ce document couvre les **deux premiers incréments** : **09a.1 (ticket #55)** — figer le
-thème, poser le socle Next.js, la mise en page et le client d'API — et
-**09a.2 (ticket #56)** — l'écran d'estimation, branché sur l'API réelle.
-L'exploration et la comparaison arrivent ensuite (09a.3, 09a.4).
+Ce document couvre les **trois premiers incréments** : **09a.1 (ticket #55)** — figer le
+thème, poser le socle Next.js, la mise en page et le client d'API —, **09a.2 (ticket
+#56)** — l'écran d'estimation, branché sur l'API réelle — et **09a.3 (ticket #57)** —
+l'exploration du marché. La comparaison arrive ensuite (09a.4).
 
 ## Thème figé (écrit avant le code)
 
@@ -47,7 +47,7 @@ de revue.
 ```
 /           accueil : parcours, ce que l'outil fait / ne fait pas, statut des écrans
 /estimer    écran 09a.2 (livré) : formulaire 5 champs → estimation + fourchette + contexte
-/explorer   écran 09a.3 — explicitement « à venir », aucune donnée simulée
+/explorer   écran 09a.3 (livré) : filtres URL, synthèse par quartier, détail type × chambres
 /comparer   écran 09a.4 — idem
 *           404 au thème, avec retour à l'accueil
 ```
@@ -75,6 +75,34 @@ de revue.
   d'afficher un formulaire inerte ou un chiffre inventé : aucune capacité n'est
   simulée.
 
+### Écran d'exploration (09a.3, ticket #57)
+
+- **Filtres dans l'URL** : `?city=…&neighborhood=…&property_type=…&bedrooms=…`.
+  Chaque combinaison est partageable et vérifiable dans un navigateur réel
+  (quartier publié, groupe sous le seuil, filtre vide). Les paramètres hors
+  contrat (ville inconnue, type inconnu, chambres hors 0–10, quartier
+  démesuré) sont ignorés — l'écran ne relaie jamais une requête invalide.
+- **Deux grains, jamais mélangés** : `/market/neighborhoods` fournit la synthèse
+  par quartier (N, moyenne, minimum–maximum, nombre de groupes) ; le détail
+  quartier × type × chambres vient de `/market/prices` (N, moyenne, médiane si
+  publiée, p10–p90). Les médianes ne sont **jamais agrégées** : la table par
+  quartier l'explique et renvoie au détail.
+- **Seuil de publication** : la médiane n'apparaît que si `median_published` est
+  vrai **et** N ≥ `min_publish_n`. Le seuil est revérifié côté écran
+  (`lib/explorer.ts::medianDisplay`), pour qu'une réponse incohérente ne rende
+  pas visible une médiane non publiable. Sinon : « Non publiée (< 30 obs.) »,
+  avec le rappel que N et moyenne restent affichés.
+- **Limites de la donnée** : au niveau de la ville, seuls les biais non nuls
+  sont listés avec leur volume et leur part (prix « à partir de »,
+  republications, quartiers non reconnus), puis la période observée et le seuil
+  de publication. Les prix **demandés** sont rappelés sur l'écran.
+- **États** : filtre sans résultat → phrase explicite (« Aucune observation
+  collectée pour … ») et bouton de retrait des filtres, aucun chiffre approché ;
+  échec de l'API → table vidée et message stable, jamais de valeurs périmées.
+- **Ce que l'écran exclut** (rappelé sous la table) : classement de quartiers,
+  recherche par budget, cartographie fine, statistiques calculées côté
+  frontend.
+
 ## Client de l'API publique
 
 `frontend/lib/api.ts` :
@@ -93,8 +121,9 @@ de revue.
 |---|---|
 | `npm run lint` | 0 erreur (ESLint 9, règles Next.js + TypeScript) |
 | `npm run typecheck` | 0 erreur (`tsc --noEmit`, strict) |
-| `npm test` | **28 tests réussis** (client API, formatage FCFA, helpers marché, erreurs d'estimation) |
+| `npm test` | **49 tests réussis** (client API, formatage, helpers marché et exploration, erreurs d'estimation) |
 | `npm run build` | **succès** — routes prérendues : `/`, `/estimer`, `/explorer`, `/comparer`, `/_not-found` |
+| `npm run lint` / `npm run typecheck` | 0 erreur (ESLint 9 + `tsc --noEmit` strict) |
 | serveur réel (`next start`, port 3000) | `/` 200, `/estimer` 200, `/explorer` 200, `/comparer` 200, `/inconnu` **404** |
 ### Vérifications bout en bout de 09a.2 (2026-10-20)
 
@@ -111,6 +140,18 @@ de revue.
 | rendu responsive | captures Chrome headless **1280×1600** et **390×1600** de l'accueil (vérification visuelle des breakpoints) |
 | aucune donnée simulée | `/estimer` affiche « Écran à venir » et le ticket 09a.2 ; aucun chiffre dans les pages |
 | CI | job **Frontend** ajouté (Node 22, `npm ci`, lint, typecheck, tests, build) — exécuté et vert depuis la PR #88 |
+
+### Vérifications bout en bout de 09a.3 (2026-10-21)
+
+| Contrôle | Résultat |
+|---|---|
+| cohérence écran ↔ API ↔ marts | Douala / Makepe / appartement / 2 ch. : écran, API et `mart_neighborhood_prices` donnent **N = 632, moyenne 98 498, médiane 90 000, p10–p90 70 000–150 000** |
+| zone sous le seuil | Douala / Bonapriso / appartement / 1 ch. : **N = 25**, moyenne 269 000, médiane « Non publiée (< 30 obs.) », p10–p90 150 000–500 000 — aucune médiane affichée |
+| filtre sans résultat | Yaoundé / Bastos / maison / 9 ch. : « Aucune observation collectée pour … », aucun chiffre de marché approché |
+| paramètres forgés | `?city=Conakry&property_type=villa&bedrooms=99` → repli sur Douala (88 quartiers, 2 811 observations), aucune valeur hors contrat envoyée |
+| filtres interactifs (CDP, Chrome réel) | ville Douala → Yaoundé : 89 → 54 options et 88 → 53 lignes ; quartier Bastos : 6 groupes, médiane non publiée ; « Retirer les filtres » → retour aux 53 quartiers |
+| limites agrégées | Douala : prix bornés 2 508 obs. (89 %), republications 1 984 obs. (71 %), quartiers non reconnus 64 obs. (2 %), période du 9 octobre 2026 |
+| responsive | captures 1280×1600 et 390×1600 ; à 390 et 500 px la page ne déborde pas, la table (1 156 px) défile dans son conteneur (451 px) |
 
 Incident de build corrigé à la cause : un premier `next build` s'est terminé en
 `Bus error` après une installation `npm` interrompue (deux installations concurrentes avaient
@@ -137,7 +178,14 @@ npm run lint && npm run typecheck && npm test && npm run build
   formulaire est vérifiée par les endpoints réels (`curl`), l'hydration réelle en Chrome
   headless (hint des quartiers mis à jour après fetch) et les tests backend, sans moteur de
   test de composants (aucune dépendance installée pour cela à ce stade).
-- **Écrans 09a.3 / 09a.4 non livrés** : `/explorer` et `/comparer` annoncent leur ticket.
+- **Écran 09a.4 non livré** : `/comparer` annonce encore son ticket.
+- **Filtres d'exploration pilotés par URL** : le rendu de chaque état (quartier
+  publié, groupe sous le seuil, filtre vide, paramètres forgés) est vérifié
+  après hydration ; le passage d'un filtre à l'autre est vérifié par CDP
+  (changement de ville, choix d'un quartier, retrait des filtres) — sans moteur
+  de test de composants installé.
+- **Tableaux étroits** : sur mobile, les tableaux défilent horizontalement dans
+  leur conteneur ; la page elle-même ne déborde pas (vérifié à 390 et 500 px).
 - **Variables `NEXT_PUBLIC_*` inlinées au build** : changer l'URL de l'API impose de
   reconstruire le frontend.
 - **Thème clair uniquement** : le mode sombre demanderait une palette complète et n'est pas au
@@ -154,6 +202,5 @@ npm run lint && npm run typecheck && npm test && npm run build
 
 | Ticket | Contenu |
 |---|---|
-| #57 | 09a.3 — écran explorer le marché (quartiers, types, seuil de publication) |
 | #58 | 09a.4 — écran comparer (prix demandé, estimation, référence locale, écarts signés) |
 | #68/#69 | 09b — interface d'administration, après les fondations 13.1 à 13.5 |

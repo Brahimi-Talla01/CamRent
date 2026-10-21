@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatFcfa, formatRange } from "./format";
+import { formatCount, formatDate, formatFcfa, formatRange, formatShare } from "./format";
 
 describe("formatFcfa", () => {
   it("met en FCFA avec séparateur de milliers insécable", () => {
@@ -16,6 +16,30 @@ describe("formatFcfa", () => {
   it("rend une chaîne explicite pour une valeur absente", () => {
     expect(formatFcfa(null)).toBe("Non publiée");
     expect(formatFcfa(undefined)).toBe("Non publiée");
+  });
+});
+
+describe("formatCount", () => {
+  it("sépare les milliers sans unité inventée", () => {
+    expect(formatCount(2811)).toMatch(/^2[\u00a0\u202f]811$/);
+  });
+});
+
+describe("formatShare", () => {
+  it("affiche une part à une décimale au plus, avec l'espace avant %", () => {
+    expect(formatShare(3.02)).toBe("3\u00a0%");
+    expect(formatShare(12.46)).toBe("12,5\u00a0%");
+  });
+});
+
+describe("formatDate", () => {
+  it("rend une date ISO en clair, sans décalage de fuseau", () => {
+    expect(formatDate("2026-10-01")).toBe("1 octobre 2026");
+  });
+
+  it("signale une date absente ou invalide", () => {
+    expect(formatDate(null)).toBe("date inconnue");
+    expect(formatDate("pas-une-date")).toBe("date inconnue");
   });
 });
 

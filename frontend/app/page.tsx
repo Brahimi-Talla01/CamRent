@@ -19,7 +19,7 @@ const FLOW_STEPS = [
       "Prix moyen, médiane, fourchette et nombre d’observations par quartier et par type " +
       "de logement, sans mélanger deux niveaux de détail.",
     href: "/explorer",
-    status: "Écran livré avec le ticket 09a.3",
+    status: "Écran livré",
   },
   {
     step: "Étape 3",

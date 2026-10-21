@@ -13,22 +13,34 @@ import {
   neighborhoodOptions,
 } from "./market";
 
+const QUALITY = {
+  n_price_bound: 0,
+  pct_price_bound: 0,
+  n_republication: 0,
+  pct_republication: 0,
+  n_neighborhood_unrecognized: null,
+  pct_neighborhood_unrecognized: null,
+} as const;
+
 function neighborhoodsResponse(
   names: string[],
 ): NeighborhoodsResponse {
   const items: NeighborhoodMarket[] = names.map((name) => ({
     neighborhood: name,
     neighborhood_recognized: true,
+    n_groups: 1,
     stats: {
       n_observations: 10,
       mean_rent_price: 100_000,
       min_rent_price: 50_000,
       max_rent_price: 200_000,
     },
+    quality: QUALITY,
   }));
   return {
     currency: "XAF",
     min_publish_n: 30,
+    observed_period: { start: "2026-10-01", end: "2026-10-09" },
     city: "Douala",
     n_observations: items.length * 10,
     n_neighborhoods: items.length,
@@ -75,6 +87,7 @@ describe("findMarketGroup", () => {
   const pricesResponse = (groups: PriceGroup[]): PricesResponse => ({
     currency: "XAF",
     min_publish_n: 30,
+    observed_period: { start: "2026-10-01", end: "2026-10-09" },
     n_observations: groups.reduce((total, group) => total + group.stats.n_observations, 0),
     groups,
   });
@@ -96,6 +109,7 @@ describe("findMarketGroup", () => {
         min_rent_price: 40_000,
         max_rent_price: 400_000,
       },
+      quality: QUALITY,
       ...overrides,
     };
   }
